@@ -2,7 +2,7 @@ name: Run Python script on schedule
 
 on:
   schedule:
-    - cron: "*/5 * * * *"   # รันทุก 5 นาที (เปลี่ยนได้ตามต้องการ)
+    - cron: "0 0,12 * * *"   # รันทุก 5 นาที (เปลี่ยนได้ตามต้องการ)
   workflow_dispatch:        # จะมีปุ่มให้ run เองได้ในหน้า Actions
 
 jobs:
