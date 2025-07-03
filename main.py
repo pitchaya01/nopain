@@ -5,10 +5,12 @@ lower_bound = 102_000
 upper_bound = 110_000
 
 # ดึงราคาปัจจุบัน BTCUSDT จาก Binance API
-response = requests.get("https://api.binance.com/api/v3/ticker/price", params={"symbol": "BTCUSDT"})
-data = response.json()
-print(data)
-current_price = float(data["price"])
+resp = requests.get(
+    "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
+)
+print(resp.json())
+current_price = resp.json()["bitcoin"]["usd"]
+  
 
 # ตรวจสอบว่าราคาอยู่ในช่วงหรือไม่
 if lower_bound <= current_price <= upper_bound:
