@@ -8,7 +8,7 @@ upper_bound = 110_000
 resp = requests.get(
     "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
 )
-print(resp.json())
+
 current_price = resp.json()["bitcoin"]["usd"]
   
 
