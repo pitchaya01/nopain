@@ -1,8 +1,8 @@
 import requests
 
 # กำหนดช่วงราคา
-lower_bound = 102_000
-upper_bound = 110_000
+lower_bound = 110_000
+upper_bound = 120_000
 
 # ดึงราคาปัจจุบัน BTCUSDT จาก Binance API
 resp = requests.get(
