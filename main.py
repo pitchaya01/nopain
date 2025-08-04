@@ -9,7 +9,7 @@ token = '7718053957:AAHSHEXigIC3lc9xkUgXtVlPWIg74eikYd0'
 chat_id = '6193006196'
 url = f"https://api.telegram.org/bot{token}/sendMessage"
 all_tweets = []
-aaa = os.getenv('API_KEY')
+aaa = os.getenv('OPENAI_API_KEY')
 openai.api_key = aaa
 def remove_urls(text):
     # ลบ pattern ของลิงก์ทั้งหมด (http, https, www. และ ลิงก์แบบไม่ใส่ www)
