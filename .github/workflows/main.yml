@@ -2,7 +2,7 @@ name: Run Python script on schedule
 
 on:
   schedule:
-    - cron: "0 0,12 * * *"   # รันวันละ 2 ครั้ง (เที่ยงคืน, เที่ยงวัน)
+    - cron: "0 0 * * *"   # รันวันละ 2 ครั้ง (เที่ยงคืน, เที่ยงวัน)
   workflow_dispatch:         # กดรันเองในหน้า Actions ได้ด้วย
 
 jobs:
