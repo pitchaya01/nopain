@@ -9,8 +9,11 @@ token = '7718053957:AAHSHEXigIC3lc9xkUgXtVlPWIg74eikYd0'
 chat_id = '6193006196'
 url = f"https://api.telegram.org/bot{token}/sendMessage"
 all_tweets = []
-aaa = os.getenv('OPENAI_API_KEY')
-openai.api_key = aaa
+if not os.getenv("OPENAI_API_KEY"):
+    from dotenv import load_dotenv
+    load_dotenv()  # จะโหลดค่า key จาก .env ถ้ามี
+
+client = openai.OpenAI() 
 def remove_urls(text):
     # ลบ pattern ของลิงก์ทั้งหมด (http, https, www. และ ลิงก์แบบไม่ใส่ www)
     return re.sub(r'http\S+|www\S+|https\S+', '', text, flags=re.MULTILINE)
@@ -25,7 +28,7 @@ def is_token_price_related(text):
         f"If so, respond ONLY with 'RELATED'. If not, respond ONLY with 'NOT_RELATED'.\n\n"
         f"Text: {text}"
     )
-    response = openai.chat.completions.create(
+    response = client.chat.completions.create(
         model="gpt-4o",
         messages = [{"role": "user", "content": prompt}],
         temperature=0
@@ -41,7 +44,7 @@ def translate_to_thai(text):
         "Please translate the following text into Thai language.\n\n"
         f"Text: {text}"
     )
-    response = openai.chat.completions.create(
+    response = client.chat.completions.create(
         model="gpt-4o",
         messages = [{"role": "user", "content": prompt}],
         temperature=0.2
