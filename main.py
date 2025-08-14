@@ -15,10 +15,10 @@ if not os.getenv("OPENAI_API_KEY"):
 
 client = openai.OpenAI()
 def remove_dollar_numbers(text):
-    # Regular expression ที่ขึ้นต้นด้วย $ และตามด้วยตัวเลข (รวมจุลภาคและจุดทศนิยม)
-    pattern = r'^\$[\d,]+(?:\.\d+)?\s*'
-    # ลบข้อความ pattern ออกจากต้น string
-    new_text = re.sub(pattern, '', text)
+    # Regular expression ที่หา $ และตัวเลขที่ตามมา ไม่จำเป็นต้องอยู่ต้นบรรทัด
+    pattern = r'\$[\d,]+(?:\.\d+)?'
+    # ลบข้อความ pattern ออกจาก string
+    new_text = re.sub(pattern, '', text).strip()
     return new_text
 def remove_urls(text):
     # ลบ pattern ของลิงก์ทั้งหมด (http, https, www. และ ลิงก์แบบไม่ใส่ www)
