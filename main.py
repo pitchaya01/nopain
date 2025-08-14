@@ -69,7 +69,7 @@ yesterday_utc = (datetime.utcnow() - timedelta(days=1)).date()
  
 for uname in usernames:
     url = "https://api.twitterapi.io/twitter/user/last_tweets"
-    params = {"userName": uname}
+    params = {"userName": uname,"includeReplies":"true"}
     response = requests.get(url, headers=headers, params=params)
     data = response.json()
  
