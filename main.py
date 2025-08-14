@@ -13,7 +13,13 @@ if not os.getenv("OPENAI_API_KEY"):
     from dotenv import load_dotenv
     load_dotenv()  # จะโหลดค่า key จาก .env ถ้ามี
 
-client = openai.OpenAI() 
+client = openai.OpenAI()
+def remove_dollar_numbers(text):
+    # Regular expression ที่ขึ้นต้นด้วย $ และตามด้วยตัวเลข (รวมจุลภาคและจุดทศนิยม)
+    pattern = r'^\$[\d,]+(?:\.\d+)?\s*'
+    # ลบข้อความ pattern ออกจากต้น string
+    new_text = re.sub(pattern, '', text)
+    return new_text
 def remove_urls(text):
     # ลบ pattern ของลิงก์ทั้งหมด (http, https, www. และ ลิงก์แบบไม่ใส่ www)
     return re.sub(r'http\S+|www\S+|https\S+', '', text, flags=re.MULTILINE)
@@ -97,7 +103,7 @@ for t in all_tweets:
         )
         payload = {
             'chat_id': chat_id,
-            'text': remove_urls(message)
+            'text': remove_dollar_numbers(remove_urls(message))
         }
         token = '7718053957:AAHSHEXigIC3lc9xkUgXtVlPWIg74eikYd0'
         chat_id = '6193006196'
