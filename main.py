@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import re
 import openai
 import os
-usernames = ["siamblockchain","BitcoinMagazine","IOHK_Charles", "MrTelecoms","CloverNodes","WMTxLady","hopenothype_io","wmchain","SebastienGllmt","MinswapIntern","ChristianRees","SebastienGllmt","fairgatelabs","worldmobileteam"]
+usernames = ["siamblockchain","BitcoinMagazine","IOHK_Charles","fairgatelabs","worldmobileteam", "MrTelecoms","CloverNodes","WMTxLady","hopenothype_io","wmchain","SebastienGllmt","MinswapIntern","ChristianRees","SebastienGllmt"]
 headers = {"X-API-Key": "e9636d13f522474b8bcfe3cad9c44d03"}
 token = '7718053957:AAHSHEXigIC3lc9xkUgXtVlPWIg74eikYd0'
 chat_id = '6193006196'
