@@ -26,7 +26,7 @@ def remove_urls(text):
     return re.sub(r'http\S+|www\S+|https\S+', '', text, flags=re.MULTILINE)
 def is_token_price_related(text):
 
-    keywords = ["price","ล้าง","แตก"] 
+    keywords = ["price","ล้าง","แตก","hold","hodl","ath"] 
     lowered = text.lower()
 
     for kw in keywords:
