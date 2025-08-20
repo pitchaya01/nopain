@@ -25,6 +25,14 @@ def remove_urls(text):
     # ลบ pattern ของลิงก์ทั้งหมด (http, https, www. และ ลิงก์แบบไม่ใส่ www)
     return re.sub(r'http\S+|www\S+|https\S+', '', text, flags=re.MULTILINE)
 def is_token_price_related(text):
+
+    keywords = ["price"] 
+    lowered = text.lower()
+
+    for kw in keywords:
+        if kw.lower() in lowered:
+            return True
+    lowered = text.lower()
     """
     ใช้ OpenAI ช่วยแยกว่าเป็นข้อความเกี่ยวกับ 'ราคาโทเคน' หรือไม่
     คืนค่า True ถ้าเกี่ยวกับราคาหรือท่าทีตลาด, False ถ้าไม่เกี่ยว
