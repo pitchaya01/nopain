@@ -4,7 +4,7 @@ import re
 import openai
 import os
 #usernames = ["club_wmtx"]
-usernames = ["siamblockchain","BitcoinMagazine","IOHK_Charles","fairgatelabs","wmReclaim","worldmobileteam", "MrTelecoms","CloverNodes","WMTxLady","hopenothype_io","wmchain","SebastienGllmt","MinswapIntern","ChristianRees"]
+usernames = ["siamblockchain","BitcoinMagazine","IOHK_Charles","wmReclaim","worldmobileteam", "MrTelecoms","CloverNodes","WMTxLady","hopenothype_io","wmchain","SebastienGllmt","MinswapIntern","ChristianRees"]
 headers = {"X-API-Key": "e9636d13f522474b8bcfe3cad9c44d03"}
 token = '7718053957:AAHSHEXigIC3lc9xkUgXtVlPWIg74eikYd0'
 chat_id = '6193006196'
@@ -26,7 +26,7 @@ def remove_urls(text):
     return re.sub(r'http\S+|www\S+|https\S+', '', text, flags=re.MULTILINE)
 def is_token_price_related(text):
 
-    keywords = ["sell","dip","price","ล้าง","แตก","hold","hodl","ath","buy","mc","sold","ขาย","ซื้อ","bear"] 
+    keywords = ["marketcap","sell","dip","price","ล้าง","แตก","hold","hodl","ath","buy","mc","sold","ขาย","ซื้อ","bear"] 
     lowered = text.lower()
 
     for kw in keywords:
