@@ -4,7 +4,7 @@ import re
 import openai
 import os
 #usernames = ["club_wmtx"]
-usernames = ["siamblockchain","BitcoinMagazine","IOHK_Charles","TheDePINCat","wmReclaim","worldmobileteam", "MrTelecoms","andrew_s_wm","CloverNodes","WMTxLady","hopenothype_io","wmchain","SebastienGllmt","MinswapIntern","ChristianRees"]
+usernames = ["siamblockchain","cointelegraph","IOHK_Charles","TheDePINCat","wmReclaim","worldmobileteam", "MrTelecoms","andrew_s_wm","CloverNodes","WMTxLady","hopenothype_io","wmchain","SebastienGllmt","MinswapIntern","ChristianRees"]
 headers = {"X-API-Key": "new1_5bdebf52aa95464bad3576b4606ff85e"}
 token = '7718053957:AAHSHEXigIC3lc9xkUgXtVlPWIg74eikYd0'
 chat_id = '6193006196'
