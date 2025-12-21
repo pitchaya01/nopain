@@ -118,7 +118,9 @@ def translate_to_thai(text):
 # r = requests.post(url, data=payload)
 # print(r)
 yesterday_utc = (datetime.utcnow() - timedelta(days=1)).date()
-#data_a=get_price_coingecko(["bitcoin"],["usd"])
+data_a=get_price_coingecko(["ada"],["usd"])
+ltv_percent = (7097.73435225 / (29121.68587978 * data_a)) * 100
+
 #data_b=get_price_coingecko(["world-mobile-token"],["usd"])
 #price_a=float(data_a['bitcoin']['usd'])
 #price_b=float(data_b['world-mobile-token']['usd'])
@@ -127,7 +129,7 @@ yesterday_utc = (datetime.utcnow() - timedelta(days=1)).date()
 #    is_helthy = "helth"
 
 #abs_p=round(normalized_abs_diff(price_a,price_b)*100,2)
-#send_telegram_text(is_helthy,'7718053957:AAHSHEXigIC3lc9xkUgXtVlPWIg74eikYd0','6193006196')
+send_telegram_text(str(ltv_percent),'7718053957:AAHSHEXigIC3lc9xkUgXtVlPWIg74eikYd0','6193006196')
 for uname in usernames:
     url = "https://api.twitterapi.io/twitter/user/last_tweets"
     params = {"userName": uname,"includeReplies":"false"}
