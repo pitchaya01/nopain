@@ -118,8 +118,8 @@ def translate_to_thai(text):
 # r = requests.post(url, data=payload)
 # print(r)
 yesterday_utc = (datetime.utcnow() - timedelta(days=1)).date()
-data_a=get_price_coingecko(["ada"],["usd"])
-ada_price=float(data_a['ada']['usd'])
+data_a=get_price_coingecko(["ada-token"],["usd"])
+ada_price=float(data_a['ada-token']['usd'])
 ltv_percent = (7097.73435225 / (29121.68587978 * ada_price)) * 100
 
 #data_b=get_price_coingecko(["world-mobile-token"],["usd"])
