@@ -125,13 +125,14 @@ ltv_percent = (7097.73435225 / (29121.68587978 * ada_price)) * 100
 #data_b=get_price_coingecko(["world-mobile-token"],["usd"])
 #price_a=float(data_a['bitcoin']['usd'])
 #price_b=float(data_b['world-mobile-token']['usd'])
-#is_helthy="no"
-if ltv_percent < 60:
-    is_helthy = "helth"
+is_helthy="no"
+if ltv_percent > 60:
+    is_helthy = "no"
+    send_telegram_text(str(ltv_percent),'7718053957:AAHSHEXigIC3lc9xkUgXtVlPWIg74eikYd0','6193006196')
 
 #abs_p=round(normalized_abs_diff(price_a,price_b)*100,2)
 
-send_telegram_text(is_helthy,'7718053957:AAHSHEXigIC3lc9xkUgXtVlPWIg74eikYd0','6193006196')
+#send_telegram_text(is_helthy,'7718053957:AAHSHEXigIC3lc9xkUgXtVlPWIg74eikYd0','6193006196')
 for uname in usernames:
     url = "https://api.twitterapi.io/twitter/user/last_tweets"
     params = {"userName": uname,"includeReplies":"false"}
