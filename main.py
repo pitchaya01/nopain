@@ -128,7 +128,7 @@ ltv_percent = (7097.73435225 / (29121.68587978 * ada_price)) * 100
 is_helthy="no"
 if ltv_percent > 60:
     is_helthy = "no"
-    send_telegram_text(str(ltv_percent),'7718053957:AAHSHEXigIC3lc9xkUgXtVlPWIg74eikYd0','6193006196')
+    #send_telegram_text(str(ltv_percent),'7718053957:AAHSHEXigIC3lc9xkUgXtVlPWIg74eikYd0','6193006196')
 
 #abs_p=round(normalized_abs_diff(price_a,price_b)*100,2)
 
