@@ -3,6 +3,191 @@ from datetime import datetime, timedelta
 import re
 import openai
 import os
+from collections import defaultdict
+from datetime import datetime, timezone, timedelta
+# ─────────────────────────────────────────
+# CONFIG
+# ─────────────────────────────────────────
+API_KEY  = "HU6J9N3UF2GNK452D3WT9PCT5S3KJSM5A2"
+CONTRACT = "0x5C697fee285B513711A816018DBb34DC0cFC4875"
+CHAIN_ID = 1
+DECIMALS = 18
+MAX_ROWS  = 2000
+PAGE_SIZE = 100
+HOURS_BACK = 24   # ← เปลี่ยนตรงนี้เพื่อดูย้อนหลังกี่ชั่วโมง
+ 
+UNISWAP_ADDR = "0x61192EB6ca9fe34a3Ccc5f4cd4bf6feFB77a037f".lower()
+ 
+METHOD_MAP = {
+    "0xdcb18521": "Decrease Stake",
+    "0xa9059cbb": "Transfer",
+    "0x12aa3caf": "Swap",
+    "0x35138382": "Increase Stake",
+}
+ 
+# Telegram
+TG_TOKEN  = "7718053957:AAHSHEXigIC3lc9xkUgXtVlPWIg74eikYd0"
+TG_CHAT   = "6193006196"
+ 
+ICT = timezone(timedelta(hours=7))
+ 
+def ts_to_str(ts: int) -> str:
+    return datetime.fromtimestamp(ts, tz=ICT).strftime("%Y-%m-%d %H:%M:%S ICT")
+ 
+ 
+# ─────────────────────────────────────────
+# TELEGRAM
+# ─────────────────────────────────────────
+def send_telegram(message: str):
+    url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+    payload = {"chat_id": TG_CHAT, "text": message}
+    try:
+        r = requests.post(url, data=payload, timeout=10)
+        r.raise_for_status()
+        resp = r.json()
+        if not resp.get("ok"):
+            print(f"[!] Telegram error: {resp}")
+        else:
+            print("[+] ส่ง Telegram สำเร็จ")
+    except Exception as e:
+        print(f"[!] Telegram ส่งไม่ได้: {e}")
+ 
+ 
+# ─────────────────────────────────────────
+# FETCH
+# ─────────────────────────────────────────
+def fetch_latest() -> list:
+    all_txs = []
+    page = 1
+    pages_needed = -(-MAX_ROWS // PAGE_SIZE)
+ 
+    cutoff_ts = int((datetime.now(tz=timezone.utc) - timedelta(hours=HOURS_BACK)).timestamp())
+    print(f"[*] ดึง tx ย้อนหลัง {HOURS_BACK}h (ตั้งแต่ {ts_to_str(cutoff_ts)})...")
+ 
+    while page <= pages_needed:
+        url = (
+            f"https://api.etherscan.io/v2/api"
+            f"?chainid={CHAIN_ID}"
+            f"&module=account"
+            f"&action=tokentx"
+            f"&contractaddress={CONTRACT}"
+            f"&page={page}"
+            f"&offset={PAGE_SIZE}"
+            f"&sort=desc"
+            f"&apikey={API_KEY}"
+        )
+        resp = requests.get(url, timeout=15)
+        data = resp.json()
+ 
+        if data["status"] != "1":
+            print(f"  [!] หยุดที่ page {page}: {data['message']} — {data['result']}")
+            break
+ 
+        batch = data["result"]
+        filtered = [tx for tx in batch if int(tx.get("timeStamp", 0)) >= cutoff_ts]
+        all_txs.extend(filtered)
+        print(f"  page {page:>2}  total {len(batch)} tx  ใน {HOURS_BACK}h: {len(filtered)} tx  รวม {len(all_txs):,}")
+ 
+        oldest_ts = int(batch[-1].get("timeStamp", 0)) if batch else 0
+        if oldest_ts < cutoff_ts:
+            print(f"  [i] ถึงช่วงเวลาที่ต้องการแล้ว หยุดดึง")
+            break
+ 
+        if len(batch) < PAGE_SIZE:
+            print(f"  [i] ข้อมูลหมดแล้ว")
+            break
+ 
+        page += 1
+ 
+    return all_txs[:MAX_ROWS]
+ 
+ 
+# ─────────────────────────────────────────
+# ANALYZE
+# ─────────────────────────────────────────
+def analyze(txs: list):
+    dec = 10 ** DECIMALS
+ 
+    method_volume = defaultdict(float)
+    method_count  = defaultdict(int)
+    unknown       = defaultdict(int)
+ 
+    from_uni_vol = to_uni_vol = 0.0
+    from_uni_cnt = to_uni_cnt = 0
+    timestamps = []
+ 
+    for tx in txs:
+        volume    = int(tx.get("value", 0)) / dec
+        from_addr = tx.get("from", "").lower()
+        to_addr   = tx.get("to",   "").lower()
+        ts        = int(tx.get("timeStamp", 0))
+        timestamps.append(ts)
+ 
+        mid  = tx.get("methodId", "0x")
+        name = METHOD_MAP.get(mid)
+ 
+        if name is None:
+            unknown[mid] += 1
+        else:
+            method_volume[name] += volume
+            method_count[name]  += 1
+ 
+        if from_addr == UNISWAP_ADDR:
+            from_uni_vol += volume
+            from_uni_cnt += 1
+        if to_addr == UNISWAP_ADDR:
+            to_uni_vol += volume
+            to_uni_cnt += 1
+ 
+    ts_min = min(timestamps) if timestamps else 0
+    ts_max = max(timestamps) if timestamps else 0
+ 
+    return (method_volume, method_count,
+            from_uni_vol, from_uni_cnt,
+            to_uni_vol,   to_uni_cnt,
+            unknown, ts_min, ts_max)
+ 
+ 
+# ─────────────────────────────────────────
+# BUILD REPORT STRING
+# ─────────────────────────────────────────
+def build_report(txs, method_volume, method_count,
+                 from_uni_vol, from_uni_cnt,
+                 to_uni_vol,   to_uni_cnt,
+                 unknown, ts_min, ts_max) -> str:
+ 
+    total_txs = len(txs)
+    total_vol = sum(method_volume.values())
+    net       = from_uni_vol - to_uni_vol
+    direction = "NET ซื้อเข้า ↑" if net > 0 else "NET ขายออก ↓"
+ 
+    lines = []
+    lines.append(f"📊 MNTx — สรุปย้อนหลัง {HOURS_BACK} ชั่วโมง")
+    lines.append(f"🕐 {ts_to_str(ts_min)}")
+    lines.append(f"   ถึง {ts_to_str(ts_max)}")
+    lines.append(f"📋 Total Tx : {total_txs:,} transactions")
+    lines.append("")
+ 
+    lines.append("── Method Volume ──")
+    for name, vol in sorted(method_volume.items(), key=lambda x: -x[1]):
+        cnt = method_count[name]
+        pct = vol / total_vol * 100 if total_vol else 0
+        lines.append(f"  {name:<16} {cnt:>5} tx  {vol:>14,.2f} MNTx ({pct:.1f}%)")
+ 
+    lines.append("")
+    lines.append("── Uniswap Flow ──")
+    lines.append(f"  ซื้อ (FROM Uni)  {from_uni_cnt:>5} tx  {from_uni_vol:>14,.2f} MNTx")
+    lines.append(f"  ขาย (TO Uni)    {to_uni_cnt:>5} tx  {to_uni_vol:>14,.2f} MNTx")
+    lines.append(f"  Net Flow        {net:>+21,.2f} MNTx")
+    lines.append(f"  {direction}")
+ 
+    return "\n".join(lines)
+ 
+ 
+# ─────────────────────────────────────────
+# MAIN
+# ─────────────────────────────────────────
+###===================================================
 #usernames = ["club_wmtx"]
 usernames = ["siamblockchain","bitcoinaddictth","BitcoinMagazine","IOHK_Charles","TheDePINCat","wmReclaim","worldmobileteam", "MrTelecoms","andrew_s_wm","CloverNodes","WMTxLady","hopenothype_io","wmchain","SebastienGllmt","MinswapIntern","ChristianRees"]
 headers = {"X-API-Key": "new1_5bdebf52aa95464bad3576b4606ff85e"}
@@ -176,4 +361,29 @@ for t in all_tweets:
         url = f"https://api.telegram.org/bot{token}/sendMessage"
         r = requests.post(url, data=payload)
         print(r.json())
+
+
+#=======================================================================================
+txs = fetch_latest()
+print(f"\n[+] ได้ทั้งหมด {len(txs):,} transactions ใน {HOURS_BACK}h\n")
  
+if not txs:
+    msg = f"⚠️ MNTx: ไม่มี transaction ใน {HOURS_BACK} ชั่วโมงที่ผ่านมา"
+    print(msg)
+    send_telegram(msg)
+    exit(0)
+(method_volume, method_count,
+     from_uni_vol, from_uni_cnt,
+     to_uni_vol,   to_uni_cnt,
+     unknown, ts_min, ts_max) = analyze(txs)
+ 
+report = build_report(txs, method_volume, method_count,
+                          from_uni_vol, from_uni_cnt,
+                          to_uni_vol,   to_uni_cnt,
+                          unknown, ts_min, ts_max)
+ 
+    # แสดงใน terminal
+ print(report)
+ 
+    # ส่ง Telegram
+send_telegram(report)
