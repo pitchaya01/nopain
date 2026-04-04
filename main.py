@@ -383,7 +383,7 @@ report = build_report(txs, method_volume, method_count,
                           unknown, ts_min, ts_max)
  
     # แสดงใน terminal
- print(report)
+print(report)
  
     # ส่ง Telegram
 send_telegram(report)
