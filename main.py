@@ -386,4 +386,4 @@ report = build_report(txs, method_volume, method_count,
 print(report)
  
     # ส่ง Telegram
-send_telegram(report)
+#send_telegram(report)
