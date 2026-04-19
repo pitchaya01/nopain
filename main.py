@@ -45,7 +45,7 @@ TG_API_ID         = 24778942
 TG_API_HASH       = "8fb64cfbdca670713487c0795dcae9d5"
 TG_PHONE          = "+66808151412"
 CHANNEL_USERNAME  = "@WorldMobileTeam"
-TARGET_USERNAME   = "watarif"
+TARGET_USERNAME   = "Mr_Telecoms"
 LOOKBACK_HOURS    = 24
 SESSION_NAME      = "monitor_session"
 
