@@ -302,7 +302,7 @@ async def run_telegram_monitor():
 # ─────────────────────────────────────────
 
 if __name__ == "__main__":
-    check_ltv()
+    #check_ltv()
     run_twitter()
-    run_mntx()
-    asyncio.run(run_telegram_monitor())
+    #run_mntx()
+    #asyncio.run(run_telegram_monitor())
