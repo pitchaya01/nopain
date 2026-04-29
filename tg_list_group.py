@@ -2,9 +2,9 @@ import asyncio
 from telethon import TelegramClient
 from telethon.tl.types import Channel, Chat
 
-API_ID   = 24778942
-API_HASH = "8fb64cfbdca670713487c0795dcae9d5"
-PHONE    = "+66808151412"
+API_ID   = 34601220
+API_HASH = "bb0feaf7e3575cb01a8af262bc7a4018"
+PHONE    = "+66824323703"
 SESSION_NAME = "monitor_session"
 
 

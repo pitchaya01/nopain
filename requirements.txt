@@ -1,5 +1,4 @@
-requests
-pandas
-numpy
-openai
-telethon
+anthropic>=0.76.0
+telethon>=1.43.1
+python-dotenv>=1.2.1
+requests>=2.32.5

@@ -1,33 +1,45 @@
+import sys
+import os
 import asyncio
 import requests
-import openai
+import anthropic
 from datetime import datetime, timezone, timedelta
+from dotenv import load_dotenv
 from telethon import TelegramClient
 
-OPENAI_API_KEY = ""
+sys.stdout.reconfigure(encoding="utf-8")
+sys.stderr.reconfigure(encoding="utf-8")
 
-openai_client = openai.OpenAI(api_key=OPENAI_API_KEY)
+load_dotenv()
+
+anthropic_client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
 # ─────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────
 
-API_ID   = 24778942
-API_HASH = "8fb64cfbdca670713487c0795dcae9d5"
-PHONE    = "+66808151412"
+API_ID   = int(os.environ["TELEGRAM_API_ID"])
+API_HASH = os.environ["TELEGRAM_API_HASH"]
+PHONE    = os.environ["TELEGRAM_PHONE"]
 
-NOTIFY_TOKEN   = "7718053957:AAHSHEXigIC3lc9xkUgXtVlPWIg74eikYd0"
-NOTIFY_CHAT_ID = "6193006196"
+NOTIFY_TOKEN   = os.environ["NOTIFY_TOKEN"]
+NOTIFY_CHAT_ID = os.environ["NOTIFY_CHAT_ID"]
 
 # Channels/Groups ที่ต้องการสรุป
 CHANNELS = [
+    "@unitynodesannouncements",
     "@WorldMobileTeam",
+    "-1003692765127", #unitynode
+    "@WorldMobileAnnouncements",
+    "@mntannouncements"
 ]
 
 # Users ที่ต้องการติดตาม (จะแจ้งเตือนทุกข้อความที่พวกเขาโพสต์)
 TRACKED_USERS = [
     "Mr_Telecoms",
+    "@unityassistant ",
     "andrew_s_wm",
+    "@Jk4milli"
 ]
 
 LOOKBACK_HOURS = 72
@@ -46,7 +58,7 @@ def send_telegram_text(message: str) -> None:
         r.raise_for_status()
 
 
-def summarize_with_gpt(channel_title: str, messages: list[tuple]) -> str:
+def summarize_with_claude(channel_title: str, messages: list[tuple]) -> str:
     lines = "\n".join(
         f"[{ts.astimezone(ICT).strftime('%Y-%m-%d %H:%M')}] {sender}: {text}"
         for ts, sender, text in messages
@@ -61,12 +73,13 @@ def summarize_with_gpt(channel_title: str, messages: list[tuple]) -> str:
         "3. ภาพรวมบรรยากาศใน group เป็นอย่างไร (เชิงบวก/เชิงลบ/เป็นกลาง)\n"
         "สรุปให้กระชับและครอบคลุม"
     )
-    response = openai_client.chat.completions.create(
-        model="gpt-4o",
+    with anthropic_client.messages.stream(
+        model="claude-sonnet-4-6",
+        max_tokens=64000,
         messages=[{"role": "user", "content": prompt}],
-        temperature=0.3,
-    )
-    return response.choices[0].message.content.strip()
+    ) as stream:
+        response = stream.get_final_message()
+    return response.content[0].text.strip()
 
 
 def get_sender_name(sender) -> str:
@@ -125,7 +138,7 @@ async def process_channel(client, channel_input: str, since: datetime):
             f"ติดตาม: {', '.join('@' + u for u in TRACKED_USERS)}"
         )
 
-    # ── สรุปภาพรวม channel ด้วย ChatGPT ──
+    # ── สรุปภาพรวม channel ด้วย Claude ──
     if not all_messages:
         send_telegram_text(
             f"📭 ไม่พบข้อความใน {entity.title}\n"
@@ -133,8 +146,8 @@ async def process_channel(client, channel_input: str, since: datetime):
         )
         return
 
-    print("[*] กำลังให้ ChatGPT สรุป...")
-    ai_summary = summarize_with_gpt(entity.title, all_messages)
+    print("[*] กำลังให้ Claude สรุป...")
+    ai_summary = summarize_with_claude(entity.title, all_messages)
     since_ict = since.astimezone(ICT).strftime("%Y-%m-%d %H:%M")
     now_ict   = datetime.now(ICT).strftime("%Y-%m-%d %H:%M")
     summary = (
