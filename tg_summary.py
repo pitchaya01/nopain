@@ -42,7 +42,7 @@ TRACKED_USERS = [
     "@Jk4milli"
 ]
 
-LOOKBACK_HOURS = 72
+LOOKBACK_HOURS = 24
 SESSION_NAME   = "monitor_session"
 
 ICT = timezone(timedelta(hours=7))
