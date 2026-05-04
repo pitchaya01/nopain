@@ -1,0 +1,1631 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SCG RMC — AI-Powered Delivery Optimization</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+/* ═══════════════════════════════════════════════
+   DESIGN TOKENS
+═══════════════════════════════════════════════ */
+:root {
+  /* Brand */
+  --scg-red:     #CC1F1F;
+  --accent:      #E85D24;
+  --accent-dk:   #B84519;
+  --accent-bg:   #FDF1EB;
+
+  /* Neutrals */
+  --navy:        #0D1B3E;
+  --navy-mid:    #1E3060;
+  --blue:        #1A5FA8;
+  --blue-bg:     #EAF2FC;
+  --blue-mid:    #3B82C4;
+
+  /* Surface */
+  --bg:          #F0EEE9;
+  --surf:        #FFFFFF;
+  --surf2:       #F5F4F1;
+  --surf3:       #ECEAE5;
+  --border:      #DDD9D2;
+  --border2:     #C8C4BC;
+
+  /* Text */
+  --txt:         #1A1816;
+  --txt2:        #5C5855;
+  --txt3:        #9B9690;
+
+  /* Semantic */
+  --green:       #1E6B3C;
+  --green-bg:    #EBF5EF;
+  --amber:       #8F5A00;
+  --amber-bg:    #FEF3DC;
+  --red:         #A82020;
+  --red-bg:      #FDEAEA;
+  --purple:      #5440B8;
+  --purple-bg:   #EFEDFC;
+  --teal:        #117A65;
+  --teal-bg:     #E5F4F1;
+
+  /* Status dots */
+  --dot-green:   #1E6B3C;
+  --dot-amber:   #8F5A00;
+  --dot-blue:    #1A5FA8;
+  --dot-purple:  #5440B8;
+  --dot-red:     #A82020;
+
+  /* Radii / shadow */
+  --r-sm: 5px;
+  --r:    8px;
+  --r-lg: 12px;
+  --r-xl: 18px;
+  --sh:   0 1px 4px rgba(0,0,0,.07), 0 3px 10px rgba(0,0,0,.06);
+  --sh-lg:0 4px 20px rgba(0,0,0,.10);
+
+  /* Nav */
+  --nav-h: 52px;
+  --side-w: 224px;
+
+  /* Font */
+  --font:  'Plus Jakarta Sans','IBM Plex Sans Thai',sans-serif;
+  --mono:  'IBM Plex Mono',monospace;
+}
+
+/* ═══════════════════════════════════════════════
+   RESET
+═══════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:var(--font);font-size:13px;color:var(--txt);background:var(--bg);-webkit-font-smoothing:antialiased;}
+button,select,input,textarea{font-family:var(--font);}
+a{text-decoration:none;color:inherit;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+
+/* ═══════════════════════════════════════════════
+   PAGE SYSTEM
+═══════════════════════════════════════════════ */
+.page{display:none;height:100vh;flex-direction:column;overflow:hidden;}
+.page.active{display:flex;}
+
+/* ═══════════════════════════════════════════════
+   TOP NAV
+═══════════════════════════════════════════════ */
+.topnav{
+  height:var(--nav-h);flex-shrink:0;
+  background:var(--navy);
+  display:flex;align-items:center;padding:0 18px;gap:0;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  position:relative;z-index:50;
+}
+.brand{display:flex;align-items:center;gap:10px;margin-right:24px;padding-right:24px;border-right:1px solid rgba(255,255,255,.1);}
+.brand-logo{
+  width:30px;height:30px;background:var(--accent);
+  clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+  display:flex;align-items:center;justify-content:center;
+}
+.brand-logo span{color:#fff;font-size:11px;font-weight:700;}
+.brand-name{font-size:14px;font-weight:700;color:#fff;letter-spacing:-.01em;}
+.brand-name em{color:var(--accent);font-style:normal;}
+.brand-sub{font-size:10px;color:rgba(255,255,255,.45);letter-spacing:.02em;}
+
+.nav-tabs{display:flex;height:100%;}
+.nav-tab{
+  display:flex;align-items:center;gap:6px;padding:0 13px;
+  font-size:12px;font-weight:500;color:rgba(255,255,255,.5);
+  cursor:pointer;border-bottom:2px solid transparent;
+  transition:color .15s,border-color .15s;white-space:nowrap;
+}
+.nav-tab:hover{color:rgba(255,255,255,.8);}
+.nav-tab.active{color:#fff;border-bottom-color:var(--accent);}
+.nav-badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:16px;height:16px;border-radius:99px;
+  background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:0 4px;
+}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.nav-chip{
+  display:flex;align-items:center;gap:6px;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);
+  border-radius:var(--r-sm);padding:4px 10px;
+  font-size:11px;color:rgba(255,255,255,.6);
+}
+.nav-chip strong{color:#fff;font-weight:600;}
+.live-dot{width:7px;height:7px;border-radius:50%;background:#2ECC71;animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.btn-new{
+  display:flex;align-items:center;gap:5px;
+  background:var(--accent);color:#fff;border:none;
+  border-radius:var(--r-sm);padding:7px 13px;
+  font-size:12px;font-weight:600;cursor:pointer;
+  transition:background .15s;
+}
+.btn-new:hover{background:var(--accent-dk);}
+
+/* ═══════════════════════════════════════════════
+   SIDEBAR
+═══════════════════════════════════════════════ */
+.sidebar{
+  width:var(--side-w);flex-shrink:0;
+  background:var(--surf);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.sb-hdr{
+  padding:10px 14px 6px;font-size:10px;font-weight:700;
+  color:var(--txt3);letter-spacing:.07em;text-transform:uppercase;
+}
+.plant-card{
+  margin:3px 8px;padding:10px 12px;border-radius:var(--r);
+  border:1px solid transparent;cursor:pointer;
+  transition:background .12s,border-color .12s;
+}
+.plant-card:hover{background:var(--surf2);}
+.plant-card.active{background:var(--blue-bg);border-color:rgba(26,95,168,.2);}
+.pc-row1{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.pc-name{font-size:12px;font-weight:600;}
+.pc-status{font-size:10px;}
+.pc-bars{display:flex;gap:3px;align-items:flex-end;height:20px;}
+.pc-bar-g{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.pc-bar{width:11px;border-radius:2px 2px 0 0;transition:height .3s;}
+.pc-bar-lbl{font-size:8px;color:var(--txt3);}
+.pool-badge{
+  margin:6px 10px 8px;padding:7px 10px;
+  background:var(--purple-bg);border:1px solid rgba(84,64,184,.18);
+  border-radius:var(--r);font-size:11px;color:var(--purple);
+  display:flex;align-items:flex-start;gap:6px;line-height:1.5;
+}
+.pool-badge .icon{font-size:13px;flex-shrink:0;margin-top:1px;}
+.sb-divider{height:1px;background:var(--border);margin:4px 0;}
+.sb-summary{padding:10px 14px;}
+.sb-sum-row{display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:3px 0;}
+.sb-sum-row span{color:var(--txt2);}
+.sb-sum-row strong{font-weight:600;}
+.sb-sum-ai{
+  margin-top:6px;padding:6px 10px;
+  background:var(--purple-bg);border-radius:var(--r-sm);
+  font-size:11px;color:var(--purple);font-weight:600;
+  display:flex;justify-content:space-between;
+}
+
+/* ═══════════════════════════════════════════════
+   MAIN LAYOUT
+═══════════════════════════════════════════════ */
+.layout-3col{display:grid;grid-template-columns:var(--side-w) 1fr 272px;flex:1;overflow:hidden;}
+.layout-2col{display:grid;grid-template-columns:1fr 320px;flex:1;overflow:hidden;}
+.layout-full{display:flex;flex-direction:column;flex:1;overflow:hidden;}
+.main-area{display:flex;flex-direction:column;overflow:hidden;background:var(--bg);}
+
+/* ═══════════════════════════════════════════════
+   KPI BAR
+═══════════════════════════════════════════════ */
+.kpi-bar{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
+  padding:12px 14px;border-bottom:1px solid var(--border);
+  background:var(--surf);flex-shrink:0;
+}
+.kpi{background:var(--surf2);border-radius:var(--r);padding:10px 13px;border:1px solid var(--border);}
+.kpi-lbl{font-size:10px;color:var(--txt3);font-weight:600;letter-spacing:.03em;text-transform:uppercase;margin-bottom:4px;}
+.kpi-val{font-size:22px;font-weight:700;line-height:1;margin-bottom:3px;letter-spacing:-.02em;}
+.kpi-sub{font-size:10px;color:var(--txt2);}
+.up{color:var(--green);}
+.dn{color:var(--red);}
+.warn{color:var(--amber);}
+
+/* ═══════════════════════════════════════════════
+   TABS
+═══════════════════════════════════════════════ */
+.sec-tabs{
+  display:flex;border-bottom:1px solid var(--border);
+  padding:0 14px;background:var(--surf);flex-shrink:0;
+}
+.stab{
+  padding:9px 12px;font-size:12px;font-weight:500;
+  color:var(--txt2);cursor:pointer;
+  border-bottom:2px solid transparent;transition:color .12s;
+  white-space:nowrap;
+}
+.stab:hover{color:var(--txt);}
+.stab.active{color:var(--txt);border-bottom-color:var(--accent);}
+.stab-badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:15px;height:15px;border-radius:99px;
+  background:var(--red-bg);color:var(--red);
+  font-size:9px;font-weight:700;padding:0 4px;margin-left:4px;
+}
+
+/* ═══════════════════════════════════════════════
+   TABLE
+═══════════════════════════════════════════════ */
+.tbl-wrap{flex:1;overflow-y:auto;}
+table{width:100%;border-collapse:collapse;}
+th{
+  font-size:10px;font-weight:700;color:var(--txt2);text-align:left;
+  padding:7px 13px;background:var(--surf2);
+  border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:2;
+  letter-spacing:.04em;text-transform:uppercase;
+}
+td{padding:8px 13px;border-bottom:1px solid var(--border);vertical-align:middle;}
+tr:hover td{background:var(--surf2);cursor:pointer;}
+tr.sel td{background:var(--blue-bg);}
+.sub-tr td{
+  background:var(--surf2);font-size:11px;
+  color:var(--txt2);padding:5px 13px 5px 30px;
+  border-bottom:1px solid var(--border);
+}
+.sub-tr:hover td{background:var(--surf3);}
+
+/* badges */
+.badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;}
+.b-ok  {background:var(--green-bg);color:var(--green);}
+.b-go  {background:var(--blue-bg);color:var(--blue);}
+.b-wait{background:var(--amber-bg);color:var(--amber);}
+.b-ai  {background:var(--purple-bg);color:var(--purple);}
+.b-err {background:var(--red-bg);color:var(--red);}
+.b-gray{background:var(--surf3);color:var(--txt2);}
+
+.plant-tag{
+  display:inline-block;font-size:10px;font-weight:600;
+  padding:1px 7px;border-radius:4px;
+  background:var(--teal-bg);color:var(--teal);margin-right:4px;
+}
+.gps-badge{
+  display:inline-flex;align-items:center;gap:3px;
+  font-size:10px;color:var(--green);font-weight:500;
+}
+.expand-icon{font-size:10px;color:var(--txt3);width:22px;}
+
+/* ═══════════════════════════════════════════════
+   TIMELINE / GANTT
+═══════════════════════════════════════════════ */
+.tl-wrap{padding:12px 14px;}
+.tl-title{font-size:10px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;}
+.tl-head{display:flex;margin-bottom:5px;}
+.tl-spacer{width:82px;flex-shrink:0;}
+.tl-hours{flex:1;display:flex;}
+.tl-h{flex:1;font-size:9px;color:var(--txt3);border-left:1px solid var(--border);padding-left:3px;}
+.tl-now-line{position:absolute;top:0;bottom:0;width:2px;background:var(--accent);opacity:.7;z-index:3;border-radius:1px;}
+.tl-row{display:flex;align-items:center;gap:6px;margin-bottom:5px;}
+.tl-lbl{font-size:10px;color:var(--txt2);width:82px;text-align:right;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tl-track{flex:1;height:21px;background:var(--surf3);border-radius:3px;position:relative;overflow:hidden;}
+.blk{
+  position:absolute;top:2px;height:17px;border-radius:2px;
+  font-size:9px;font-weight:600;display:flex;align-items:center;
+  padding:0 5px;overflow:hidden;white-space:nowrap;cursor:pointer;
+  transition:opacity .15s;
+}
+.blk:hover{opacity:.8;}
+.bl-b {background:#BEDAF5;color:#0F4880;}
+.bl-g {background:#BDE0C8;color:#1D5430;}
+.bl-a {background:#FAD08A;color:#6B4400;}
+.bl-p {background:#D8D4F8;color:#3D2F9E;}
+.bl-t {background:#B9E4DC;color:#145748;}
+.bl-e {background:var(--surf3);color:var(--txt3);border:1px dashed var(--border2);}
+.bl-pool{background:#E8D8FA;color:#5440B8;border:1px dashed rgba(84,64,184,.4);}
+
+/* ═══════════════════════════════════════════════
+   RIGHT AI PANEL
+═══════════════════════════════════════════════ */
+.ai-panel{background:var(--surf);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.aip-hdr{
+  padding:12px 14px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;flex-shrink:0;
+}
+.aip-hdr h3{font-size:13px;font-weight:700;}
+.aip-hdr .sub{font-size:10px;color:var(--txt3);margin-left:auto;}
+.ai-pulse{width:8px;height:8px;border-radius:50%;background:var(--purple);animation:blink 1.8s infinite;}
+.aip-scroll{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;}
+
+.alert-box{padding:10px 12px;border-radius:var(--r);border:1px solid rgba(168,32,32,.22);background:var(--red-bg);}
+.ab-title{font-size:12px;font-weight:700;color:var(--red);margin-bottom:3px;display:flex;align-items:center;gap:5px;}
+.ab-body{font-size:11px;color:#7A2020;line-height:1.55;}
+.ab-btns{display:flex;gap:6px;margin-top:7px;}
+.ab-btn{font-size:11px;padding:5px 10px;border-radius:var(--r-sm);border:1px solid rgba(168,32,32,.25);background:transparent;color:var(--red);cursor:pointer;}
+.ab-btn.p{background:var(--red);color:#fff;border-color:transparent;}
+
+.sug{padding:10px 12px;border-radius:var(--r);background:var(--surf2);border-left:3px solid;}
+.sug.inf{border-left-color:var(--blue);}
+.sug.wrn{border-left-color:var(--amber);}
+.sug.suc{border-left-color:var(--green);}
+.sug.ai {border-left-color:var(--purple);}
+.sug.tl {border-left-color:var(--teal);}
+.sug-title{font-size:12px;font-weight:700;margin-bottom:3px;}
+.sug-body{font-size:11px;color:var(--txt2);line-height:1.55;}
+.sug-link{margin-top:5px;font-size:11px;color:var(--blue);cursor:pointer;}
+.sug-link:hover{text-decoration:underline;}
+
+/* GPS insight strip */
+.gps-strip{
+  padding:8px 12px;border-radius:var(--r);
+  background:linear-gradient(135deg,var(--green-bg),#F0FAF4);
+  border:1px solid rgba(30,107,60,.18);
+  font-size:11px;
+}
+.gps-strip-title{font-size:11px;font-weight:700;color:var(--green);margin-bottom:5px;display:flex;align-items:center;gap:5px;}
+.gps-row{display:flex;justify-content:space-between;padding:3px 0;font-size:11px;color:var(--txt2);border-bottom:1px solid rgba(30,107,60,.1);}
+.gps-row:last-child{border-bottom:none;}
+.gps-row strong{color:var(--green);font-weight:600;}
+
+.relocate-box{border:1px solid var(--border);border-radius:var(--r);overflow:hidden;}
+.rb-hdr{padding:8px 12px;background:var(--surf2);font-size:11px;font-weight:700;color:var(--txt2);display:flex;justify-content:space-between;align-items:center;}
+.rb-note{font-size:10px;color:var(--txt3);font-weight:400;}
+.rb-body{padding:10px 12px;display:flex;flex-direction:column;gap:7px;}
+.rb-row{display:flex;align-items:center;gap:8px;font-size:11px;}
+.rb-row label{color:var(--txt2);width:42px;flex-shrink:0;}
+.rb-row select{flex:1;font-size:11px;padding:5px 8px;border:1px solid var(--border2);border-radius:var(--r-sm);background:var(--surf);color:var(--txt);}
+.rb-arrow{text-align:center;font-size:11px;color:var(--txt3);}
+.btn-confirm{width:100%;margin-top:2px;padding:7px;font-size:12px;font-weight:600;border-radius:var(--r);border:none;background:var(--blue);color:#fff;cursor:pointer;transition:background .15s;}
+.btn-confirm:hover{background:#154D8A;}
+
+.ai-input-area{padding:10px 12px;border-top:1px solid var(--border);background:var(--surf);flex-shrink:0;}
+.ai-row{display:flex;gap:6px;margin-bottom:6px;}
+.ai-row input{flex:1;font-size:12px;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--r);background:var(--surf);color:var(--txt);}
+.ai-row input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,95,168,.1);}
+.ai-row button{padding:7px 12px;font-size:12px;font-weight:600;background:var(--blue-bg);color:var(--blue);border:none;border-radius:var(--r);cursor:pointer;}
+.ai-chips{display:flex;flex-wrap:wrap;gap:4px;}
+.ai-chip{font-size:10px;padding:3px 9px;border-radius:99px;border:1px solid var(--border2);color:var(--txt2);background:transparent;cursor:pointer;transition:background .12s;}
+.ai-chip:hover{background:var(--surf2);}
+
+/* ═══════════════════════════════════════════════
+   MAP
+═══════════════════════════════════════════════ */
+.map-wrap{flex:1;position:relative;overflow:hidden;}
+#main-map,#overview-map,#order-mini-map{width:100%;height:100%;background:#E8E4DC;}
+.map-toolbar{position:absolute;top:10px;left:10px;z-index:500;display:flex;flex-direction:column;gap:5px;}
+.mtb{
+  background:var(--surf);border:1px solid var(--border2);border-radius:var(--r);
+  padding:6px 11px;font-size:11px;font-weight:600;color:var(--txt2);
+  cursor:pointer;box-shadow:var(--sh);display:flex;align-items:center;gap:5px;
+  white-space:nowrap;transition:background .12s;
+}
+.mtb:hover{background:var(--surf2);}
+.mtb.active{background:var(--blue-bg);color:var(--blue);border-color:rgba(26,95,168,.3);}
+.map-legend{
+  position:absolute;bottom:14px;left:10px;z-index:500;
+  background:var(--surf);border:1px solid var(--border);border-radius:var(--r);
+  padding:10px 12px;box-shadow:var(--sh);font-size:11px;
+}
+.ml-title{font-size:9px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+.ml-row{display:flex;align-items:center;gap:7px;margin-bottom:4px;color:var(--txt2);}
+.ml-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.ml-sq{width:12px;height:10px;border-radius:2px;flex-shrink:0;}
+.map-time{
+  position:absolute;top:10px;right:10px;z-index:500;
+  background:var(--surf);border:1px solid var(--border);border-radius:var(--r);
+  padding:6px 12px;font-size:12px;font-weight:600;box-shadow:var(--sh);
+  display:flex;align-items:center;gap:7px;
+}
+.map-ai-card{
+  position:absolute;bottom:14px;right:10px;z-index:500;
+  background:var(--surf);border:1px solid var(--border);border-radius:var(--r-lg);
+  padding:12px 14px;width:230px;box-shadow:var(--sh-lg);
+}
+.mac-title{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;margin-bottom:6px;}
+.mac-body{font-size:11px;color:var(--txt2);line-height:1.55;margin-bottom:8px;}
+.mac-btn{width:100%;padding:6px;font-size:11px;font-weight:600;background:var(--blue);color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer;}
+
+/* truck list */
+.truck-list-panel{background:var(--surf);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;width:256px;flex-shrink:0;}
+.tlp-hdr{padding:10px 13px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.tlp-hdr h3{font-size:13px;font-weight:700;}
+.tlp-scroll{flex:1;overflow-y:auto;}
+.truck-group{padding:5px 13px 2px;font-size:9px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;margin-top:4px;}
+.truck-item{display:flex;align-items:center;gap:9px;padding:8px 13px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;}
+.truck-item:hover{background:var(--surf2);}
+.truck-item.sel{background:var(--blue-bg);}
+.ti-icon{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;}
+.ti-id{font-size:12px;font-weight:700;font-family:var(--mono);}
+.ti-plant{font-size:10px;color:var(--txt3);}
+.ti-right{margin-left:auto;text-align:right;}
+.ti-eta{font-size:10px;color:var(--txt2);}
+.truck-detail-panel{border-top:1px solid var(--border);padding:12px 13px;background:var(--surf2);flex-shrink:0;}
+.tdp-title{font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:6px;}
+.tdp-row{display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:4px 0;border-bottom:1px solid var(--border);}
+.tdp-row:last-child{border-bottom:none;}
+.tdp-row span{color:var(--txt3);}
+.tdp-row strong{color:var(--txt);font-weight:600;}
+.gps-live{color:var(--green);font-size:10px;font-weight:600;}
+
+/* ═══════════════════════════════════════════════
+   FORM
+═══════════════════════════════════════════════ */
+.form-scroll{flex:1;overflow-y:auto;padding:18px 22px;}
+.form-section{font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;margin:18px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.form-grid.three{grid-template-columns:1fr 1fr 1fr;}
+.form-grid.full{grid-template-columns:1fr;}
+.field{display:flex;flex-direction:column;gap:4px;}
+.field label{font-size:11px;font-weight:600;color:var(--txt2);}
+.field-req{color:var(--red);margin-left:2px;}
+.field input,.field select,.field textarea{
+  font-size:13px;padding:8px 10px;
+  border:1px solid var(--border2);border-radius:var(--r);
+  background:var(--surf);color:var(--txt);
+  transition:border-color .15s;
+}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,95,168,.1);}
+.field-hint{font-size:10px;color:var(--txt3);}
+.ai-suggest-box{
+  grid-column:1/-1;padding:10px 13px;
+  background:var(--purple-bg);border:1px solid rgba(84,64,184,.18);border-radius:var(--r);
+  font-size:12px;color:var(--purple);display:flex;align-items:flex-start;gap:8px;
+}
+.ai-suggest-box .icon{font-size:15px;flex-shrink:0;}
+.op-list{grid-column:1/-1;display:flex;flex-direction:column;gap:5px;}
+.op-item{
+  display:flex;align-items:center;gap:10px;padding:9px 12px;
+  background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);font-size:12px;
+}
+.op-num{width:22px;height:22px;border-radius:50%;background:var(--teal-bg);color:var(--teal);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.op-name{font-weight:600;width:100px;}
+.op-rounds{color:var(--txt2);flex:1;}
+.op-tag{background:var(--teal-bg);color:var(--teal);padding:1px 7px;border-radius:4px;font-size:10px;font-weight:600;}
+.op-ai{background:var(--purple-bg);color:var(--purple);padding:1px 7px;border-radius:4px;font-size:10px;font-weight:600;}
+.btn-add-plant{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  padding:8px 12px;background:transparent;border:1px dashed var(--border2);
+  border-radius:var(--r);color:var(--txt2);font-size:12px;width:100%;cursor:pointer;
+  transition:background .12s;
+}
+.btn-add-plant:hover{background:var(--surf2);}
+.form-footer{
+  padding:12px 22px;background:var(--surf);border-top:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;justify-content:flex-end;flex-shrink:0;
+}
+.btn-primary{padding:8px 18px;background:var(--accent);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;}
+.btn-secondary{padding:8px 18px;background:transparent;color:var(--txt2);border:1px solid var(--border2);border-radius:var(--r);font-size:13px;cursor:pointer;}
+.btn-blue{padding:8px 18px;background:var(--blue);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;}
+.mini-map-box{height:200px;border-radius:var(--r);overflow:hidden;border:1px solid var(--border);margin-bottom:8px;}
+.route-row{display:flex;gap:8px;font-size:11px;color:var(--txt2);padding:5px 0;border-bottom:1px solid var(--border);}
+.route-row:last-child{border-bottom:none;}
+.rr-lbl{color:var(--txt3);width:76px;flex-shrink:0;}
+.rr-val{font-weight:600;color:var(--txt);}
+
+/* ═══════════════════════════════════════════════
+   TRUCK PLAN PAGE
+═══════════════════════════════════════════════ */
+.filter-bar{padding:9px 14px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;background:var(--surf);flex-shrink:0;}
+.filter-bar label{font-size:11px;color:var(--txt2);}
+.filter-bar select,.filter-bar input[type=date]{font-size:12px;padding:5px 8px;border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--txt);background:var(--surf);}
+.truck-plan-content{flex:1;overflow-y:auto;padding:14px;}
+.plan-section-title{font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--border);}
+.truck-card{background:var(--surf);border:1px solid var(--border);border-radius:var(--r-lg);margin-bottom:10px;overflow:hidden;box-shadow:var(--sh);}
+.tc-hdr{display:flex;align-items:center;gap:10px;padding:9px 13px;border-bottom:1px solid var(--border);background:var(--surf2);}
+.tc-id{font-size:13px;font-weight:700;font-family:var(--mono);}
+.tc-plant{font-size:11px;color:var(--txt2);}
+.tc-tags{display:flex;gap:5px;margin-left:6px;}
+.tc-tag{font-size:10px;padding:1px 7px;border-radius:4px;font-weight:600;}
+.tc-status{margin-left:auto;}
+.tc-kpis{display:flex;gap:18px;padding:7px 13px;border-bottom:1px solid var(--border);}
+.tc-kpi{font-size:11px;color:var(--txt2);}
+.tc-kpi strong{color:var(--txt);font-weight:600;}
+.tc-tl{padding:8px 13px;}
+.tc-trips{padding:0 13px 10px;}
+.trip-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px dashed var(--border);font-size:11px;}
+.trip-row:last-child{border-bottom:none;}
+.trip-time{font-family:var(--mono);font-size:10px;color:var(--txt2);width:78px;flex-shrink:0;}
+.trip-route{flex:1;}
+.trip-plant-hop{color:var(--purple);font-size:10px;font-weight:600;}
+.trip-vol{color:var(--txt2);font-size:10px;}
+.trip-status-ok{color:var(--green);}
+.trip-status-active{color:var(--amber);}
+
+/* ═══════════════════════════════════════════════
+   FLEET SIZING
+═══════════════════════════════════════════════ */
+.fleet-content{flex:1;overflow-y:auto;padding:14px;}
+.fleet-summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px;}
+.fsc{background:var(--surf);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;box-shadow:var(--sh);}
+.fsc h4{font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;}
+.fsc-big{font-size:36px;font-weight:800;line-height:1;margin-bottom:3px;letter-spacing:-.03em;}
+.fsc-sub{font-size:11px;color:var(--txt2);}
+.fsc-detail{margin-top:8px;font-size:11px;color:var(--txt2);line-height:1.7;}
+.alloc-table{width:100%;border-collapse:collapse;font-size:12px;}
+.alloc-table th{background:var(--surf2);padding:7px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--txt2);border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.04em;}
+.alloc-table td{padding:8px 12px;border-bottom:1px solid var(--border);}
+.util-bar{height:6px;background:var(--surf3);border-radius:3px;overflow:hidden;display:inline-block;width:72px;vertical-align:middle;margin-right:6px;}
+.util-fill{height:100%;border-radius:3px;}
+.uf-ok{background:var(--blue);}
+.uf-warn{background:var(--amber);}
+.uf-hot{background:var(--red);}
+.hour-chart{display:flex;align-items:flex-end;gap:5px;height:72px;margin-bottom:6px;}
+.hc-bar{flex:1;border-radius:2px 2px 0 0;min-width:8px;display:flex;align-items:center;justify-content:center;}
+.hc-num{font-size:9px;font-weight:700;color:var(--txt);margin-top:2px;}
+.hc-lbl{font-size:9px;color:var(--txt3);text-align:center;}
+
+/* ═══════════════════════════════════════════════
+   REPORT PAGE
+═══════════════════════════════════════════════ */
+.report-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:14px;flex:1;overflow-y:auto;}
+.rc{background:var(--surf);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;box-shadow:var(--sh);}
+.rc-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;}
+.rc-title{font-size:13px;font-weight:700;}
+.rc-sub{font-size:10px;color:var(--txt3);}
+.mini-bars{display:flex;align-items:flex-end;gap:3px;height:56px;margin-bottom:5px;}
+.mb{flex:1;border-radius:2px 2px 0 0;}
+.mb.today{border:2px solid var(--accent);background:var(--accent-bg);}
+.mb-lbl{flex:1;font-size:9px;color:var(--txt3);text-align:center;}
+.stat-list-item{display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:5px 0;border-bottom:1px solid var(--border);}
+.stat-list-item:last-child{border-bottom:none;}
+.stat-val{font-weight:700;font-size:13px;}
+.ai-impact-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.aic{padding:10px;background:var(--surf2);border-radius:var(--r);text-align:center;}
+.aic-val{font-size:20px;font-weight:800;line-height:1;}
+.aic-lbl{font-size:10px;color:var(--txt3);margin-top:3px;}
+
+/* ═══════════════════════════════════════════════
+   MODAL
+═══════════════════════════════════════════════ */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surf);border-radius:var(--r-xl);width:520px;max-height:80vh;overflow-y:auto;box-shadow:var(--sh-lg);}
+.modal-hdr{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-hdr h3{font-size:15px;font-weight:700;}
+.modal-close{background:none;border:none;font-size:18px;color:var(--txt3);cursor:pointer;}
+.modal-body{padding:16px 20px;}
+.modal-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
+.impact-row{display:flex;align-items:flex-start;gap:9px;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.impact-row:last-child{border-bottom:none;}
+.impact-icon{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;}
+.ii-warn{background:var(--amber-bg);color:var(--amber);}
+.ii-ok{background:var(--green-bg);color:var(--green);}
+.impact-detail{flex:1;line-height:1.55;color:var(--txt2);}
+.impact-detail strong{color:var(--txt);display:block;}
+
+/* ═══════════════════════════════════════════════
+   LEAFLET OVERRIDE
+═══════════════════════════════════════════════ */
+.leaflet-popup-content-wrapper{border-radius:10px!important;box-shadow:var(--sh-lg)!important;font-family:var(--font)!important;padding:0!important;overflow:hidden;}
+.leaflet-popup-content{margin:0!important;}
+.leaflet-popup-tip-container{display:none;}
+.map-popup{padding:10px 13px;min-width:180px;}
+.mp-title{font-size:13px;font-weight:700;margin-bottom:3px;}
+.mp-sub{font-size:11px;color:var(--txt2);line-height:1.5;}
+.mp-badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;margin-top:5px;}
+.mp-gps{font-size:10px;color:var(--green);font-weight:600;margin-top:4px;}
+
+/* breadcrumb */
+.breadcrumb{padding:8px 20px;font-size:11px;color:var(--txt3);display:flex;align-items:center;gap:4px;background:var(--surf);border-bottom:1px solid var(--border);flex-shrink:0;}
+.breadcrumb .sep{color:var(--border2);}
+.breadcrumb span{color:var(--txt2);}
+
+/* order detail panel */
+.order-detail-panel{background:var(--surf);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.odp-hdr{padding:11px 13px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.odp-hdr .title{font-size:13px;font-weight:700;}
+.odp-scroll{flex:1;overflow-y:auto;padding:13px;}
+.odp-section{font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 7px;}
+.odp-grid{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:12px;margin-bottom:8px;}
+.odp-lbl{color:var(--txt3);}
+.odp-val{font-weight:600;}
+.po-card{background:var(--teal-bg);border:1px solid rgba(17,122,101,.2);border-radius:var(--r);padding:9px 11px;margin-bottom:6px;}
+.po-card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;}
+.po-card-name{font-size:12px;font-weight:700;color:var(--teal);}
+.po-trips{display:grid;grid-template-columns:auto 1fr auto;gap:3px 10px;font-size:11px;color:var(--txt2);}
+.progress-bar{height:6px;background:var(--surf3);border-radius:3px;overflow:hidden;margin-top:6px;}
+.progress-fill{height:100%;background:var(--green);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════
+     MODAL — AI PLAN (CO-002)
+════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="aiplan-modal">
+  <div class="modal" style="width:580px;">
+    <div class="modal-hdr">
+      <div>
+        <h3>✦ AI Plan — CO-002 ลาดพร้าว Tower</h3>
+        <div style="font-size:11px;color:var(--txt3);margin-top:2px;">แนะนำการแบ่ง Order โรงงานที่มีประสิทธิภาพสูงสุด</div>
+      </div>
+      <button class="modal-close" onclick="closeAIPlanModal()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Order Info -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;">
+        <div style="padding:8px 10px;background:var(--surf2);border-radius:var(--r);font-size:11px;"><div style="color:var(--txt3);margin-bottom:2px;">Site</div><strong>ลาดพร้าว Tower</strong></div>
+        <div style="padding:8px 10px;background:var(--surf2);border-radius:var(--r);font-size:11px;"><div style="color:var(--txt3);margin-bottom:2px;">เวลาเริ่ม</div><strong>09:30 น.</strong></div>
+        <div style="padding:8px 10px;background:var(--surf2);border-radius:var(--r);font-size:11px;"><div style="color:var(--txt3);margin-bottom:2px;">ปริมาณ</div><strong>15 คิว / 3 รอบ</strong></div>
+        <div style="padding:8px 10px;background:var(--surf2);border-radius:var(--r);font-size:11px;"><div style="color:var(--txt3);margin-bottom:2px;">ความถี่</div><strong>ทุก 30 นาที</strong></div>
+      </div>
+
+      <!-- AI Reasoning -->
+      <div style="padding:10px 12px;background:var(--purple-bg);border:1px solid rgba(84,64,184,.18);border-radius:var(--r);margin-bottom:14px;">
+        <div style="font-size:11px;font-weight:700;color:var(--purple);margin-bottom:6px;">✦ AI วิเคราะห์จาก GPS Real-time + ระยะทาง + รถว่างขณะนี้</div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:11px;color:var(--txt2);">
+          <span style="color:var(--txt3);">ลาดพร้าว</span><span>รถว่าง 5 คัน · ระยะทาง site 6.8 กม. · ETA GPS 09:28 <span style="color:var(--green);font-weight:600;">✓ ดีที่สุด</span></span>
+          <span style="color:var(--txt3);">รัชดา</span><span>รถว่าง 3 คัน · ระยะทาง site 9.4 กม. · ETA GPS 09:41 (ช้ากว่า 13 นาที)</span>
+          <span style="color:var(--txt3);">ห้วยขวาง</span><span>รถว่าง 1 คัน · งานล้น · ไม่แนะนำใช้</span>
+        </div>
+      </div>
+
+      <!-- Proposed Order Plant split -->
+      <div style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Order โรงงานที่ AI แนะนำ</div>
+
+      <!-- PO-002-B: ลาดพร้าว (หลัก) -->
+      <div style="border:1px solid rgba(17,122,101,.25);border-radius:var(--r);overflow:hidden;margin-bottom:8px;">
+        <div style="padding:8px 12px;background:var(--teal-bg);display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:12px;font-weight:700;color:var(--teal);">PO-002-B · โรงงานลาดพร้าว</span>
+            <span style="font-size:10px;padding:1px 7px;border-radius:4px;background:var(--green-bg);color:var(--green);font-weight:600;">AI เลือก — หลัก</span>
+          </div>
+          <span style="font-size:11px;font-weight:600;color:var(--teal);">2 รอบ · 10 คิว</span>
+        </div>
+        <div style="padding:10px 12px;">
+          <div style="display:grid;grid-template-columns:80px 1fr 80px 90px;gap:0;font-size:11px;font-weight:600;color:var(--txt3);padding-bottom:5px;border-bottom:1px solid var(--border);margin-bottom:5px;">
+            <span>รอบ</span><span>เส้นทาง</span><span>รถโม่</span><span>ETA (GPS)</span>
+          </div>
+          <div style="display:grid;grid-template-columns:80px 1fr 80px 90px;gap:4px 0;font-size:11px;color:var(--txt2);">
+            <span>รอบ 1 · 09:30</span><span>ลาดพร้าว → ลาดพร้าว Tower</span><span style="color:var(--navy);font-weight:600;">TRK-L01</span><span style="color:var(--green);font-weight:600;">● 09:28</span>
+            <span>รอบ 2 · 10:00</span><span>ลาดพร้าว → ลาดพร้าว Tower</span><span style="color:var(--navy);font-weight:600;">TRK-L02</span><span style="color:var(--green);font-weight:600;">● 09:58</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- PO-002-A: รัชดา (เสริม) -->
+      <div style="border:1px solid rgba(26,95,168,.2);border-radius:var(--r);overflow:hidden;margin-bottom:14px;">
+        <div style="padding:8px 12px;background:var(--blue-bg);display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:12px;font-weight:700;color:var(--blue);">PO-002-A · โรงงานรัชดา</span>
+            <span style="font-size:10px;padding:1px 7px;border-radius:4px;background:var(--surf2);color:var(--txt2);font-weight:600;">เสริม</span>
+          </div>
+          <span style="font-size:11px;font-weight:600;color:var(--blue);">1 รอบ · 5 คิว</span>
+        </div>
+        <div style="padding:10px 12px;">
+          <div style="display:grid;grid-template-columns:80px 1fr 80px 90px;gap:0;font-size:11px;font-weight:600;color:var(--txt3);padding-bottom:5px;border-bottom:1px solid var(--border);margin-bottom:5px;">
+            <span>รอบ</span><span>เส้นทาง</span><span>รถโม่</span><span>ETA (GPS)</span>
+          </div>
+          <div style="display:grid;grid-template-columns:80px 1fr 80px 90px;gap:4px 0;font-size:11px;color:var(--txt2);">
+            <span>รอบ 3 · 10:30</span><span>รัชดา → ลาดพร้าว Tower</span><span style="color:var(--navy);font-weight:600;">TRK-R01</span><span style="color:var(--amber);font-weight:600;">10:41</span>
+          </div>
+          <div style="margin-top:6px;font-size:10px;color:var(--txt3);">* TRK-R01 ว่างหลัง CO-001 R2 เสร็จ 10:15 · ETA ถึง site ช้ากว่าลาดพร้าว 13 นาที แต่ยังอยู่ใน window ที่ยอมรับได้</div>
+        </div>
+      </div>
+
+      <!-- Summary comparison -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div style="padding:10px 12px;background:var(--green-bg);border:1px solid rgba(30,107,60,.18);border-radius:var(--r);">
+          <div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:5px;">✓ AI Plan นี้ (ลาดพร้าวหลัก)</div>
+          <div style="font-size:11px;color:var(--txt2);line-height:1.6;">ระยะทางรวม ~20.4 กม.<br>รถที่ใช้: TRK-L01, L02, R01<br>ETA รอบแรก: <strong style="color:var(--green);">09:28</strong> (ตรงเวลา)</div>
+        </div>
+        <div style="padding:10px 12px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);">
+          <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:5px;">เปรียบเทียบ: รัชดาทั้งหมด</div>
+          <div style="font-size:11px;color:var(--txt2);line-height:1.6;">ระยะทางรวม ~28.2 กม. (+38%)<br>รถที่ใช้: TRK-R01, R02, R03<br>ETA รอบแรก: <strong style="color:var(--amber);">09:41</strong> (ช้า 13 นาที)</div>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeAIPlanModal()">ยกเลิก</button>
+      <button class="btn-secondary" onclick="closeAIPlanModal()">ปรับ Manual</button>
+      <button class="btn-primary" onclick="closeAIPlanModal()">✓ ยืนยัน AI Plan และ Assign รถโม่</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     MODAL — โยกรถ (CO-003)
+════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="relocate-modal">
+  <div class="modal" style="width:560px;">
+    <div class="modal-hdr">
+      <div>
+        <h3>⇄ โยกรถเข้า Pool — CO-003 ห้วยขวาง Prestige</h3>
+        <div style="font-size:11px;color:var(--txt3);margin-top:2px;">เลือกรถจาก Pool ศูนย์รัชดาเพื่อช่วยจัดส่ง CO-003</div>
+      </div>
+      <button class="modal-close" onclick="closeRelocateModal()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Problem summary -->
+      <div style="padding:10px 12px;background:var(--red-bg);border:1px solid rgba(168,32,32,.2);border-radius:var(--r);margin-bottom:14px;display:flex;gap:12px;align-items:flex-start;">
+        <div style="font-size:22px;line-height:1;">⚠</div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:3px;">CO-003 ต้องการรถเพิ่ม 4 คัน</div>
+          <div style="font-size:11px;color:var(--txt2);">ห้วยขวางมีรถว่างเพียง <strong>1 คัน (TRK-H01)</strong> แต่ต้องส่ง 5 รอบ ทุก 20 นาที ช่วง 10:00–11:20<br>ต้องโยกรถจากโรงงานอื่นในศูนย์มาช่วย</div>
+        </div>
+      </div>
+
+      <!-- Available trucks in pool -->
+      <div style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">รถว่างในศูนย์รัชดา — เลือกเพื่อโยก</div>
+
+      <div id="truck-options" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">
+
+        <!-- TRK-R03 — AI แนะนำ -->
+        <label style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:2px solid var(--purple);border-radius:var(--r);background:var(--purple-bg);cursor:pointer;">
+          <input type="checkbox" id="chk-r03" checked style="width:16px;height:16px;accent-color:var(--purple);">
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
+              <span style="font-size:12px;font-weight:700;font-family:var(--mono);">TRK-R03</span>
+              <span style="font-size:10px;padding:1px 7px;border-radius:4px;background:var(--green-bg);color:var(--green);font-weight:600;">✦ AI แนะนำ</span>
+              <span class="gps-badge" style="margin-left:auto;">● GPS Live</span>
+            </div>
+            <div style="font-size:11px;color:var(--txt2);display:grid;grid-template-columns:auto auto auto;gap:0 14px;">
+              <span>โรงงานรัชดา</span>
+              <span>ETA กลับ: <strong style="color:var(--green);">09:26</strong></span>
+              <span>พร้อมส่งห้วยขวาง: <strong>~09:48</strong></span>
+            </div>
+            <div style="font-size:10px;color:var(--purple);margin-top:3px;">รับ CO-003 รอบที่ 2 (10:20) และ รอบที่ 4 (11:00) ได้ทัน</div>
+          </div>
+        </label>
+
+        <!-- TRK-R02 — แนะนำ -->
+        <label style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:2px solid var(--purple);border-radius:var(--r);background:var(--purple-bg);cursor:pointer;">
+          <input type="checkbox" id="chk-r02" checked style="width:16px;height:16px;accent-color:var(--purple);">
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
+              <span style="font-size:12px;font-weight:700;font-family:var(--mono);">TRK-R02</span>
+              <span style="font-size:10px;padding:1px 7px;border-radius:4px;background:var(--green-bg);color:var(--green);font-weight:600;">✦ AI แนะนำ</span>
+              <span class="gps-badge" style="margin-left:auto;">● GPS Live</span>
+            </div>
+            <div style="font-size:11px;color:var(--txt2);display:grid;grid-template-columns:auto auto auto;gap:0 14px;">
+              <span>โรงงานรัชดา</span>
+              <span>ว่างหลัง CO-001 R4: <strong>10:15</strong></span>
+              <span>พร้อมส่งห้วยขวาง: <strong>~10:32</strong></span>
+            </div>
+            <div style="font-size:10px;color:var(--purple);margin-top:3px;">รับ CO-003 รอบที่ 3 (10:40) และ รอบที่ 5 (11:00) ได้ทัน</div>
+          </div>
+        </label>
+
+        <!-- TRK-L03 — ไม่แนะนำ -->
+        <label style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--r);background:var(--surf2);cursor:pointer;opacity:.75;">
+          <input type="checkbox" id="chk-l03" style="width:16px;height:16px;accent-color:var(--blue);">
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
+              <span style="font-size:12px;font-weight:700;font-family:var(--mono);">TRK-L03</span>
+              <span style="font-size:10px;padding:1px 7px;border-radius:4px;background:var(--amber-bg);color:var(--amber);font-weight:600;">ไกลกว่า</span>
+            </div>
+            <div style="font-size:11px;color:var(--txt2);display:grid;grid-template-columns:auto auto auto;gap:0 14px;">
+              <span>โรงงานลาดพร้าว</span>
+              <span>ว่างอยู่ตอนนี้</span>
+              <span>พร้อมส่งห้วยขวาง: <strong>~10:15</strong></span>
+            </div>
+            <div style="font-size:10px;color:var(--amber);margin-top:3px;">ระยะทางจากลาดพร้าว → ห้วยขวาง ไกลกว่ารัชดา 4.2 กม. · ต้นทุนน้ำมันสูงกว่า</div>
+          </div>
+        </label>
+
+      </div>
+
+      <!-- Impact preview -->
+      <div style="padding:10px 12px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:6px;">Preview ผลลัพธ์หลังโยกรถ</div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:11px;color:var(--txt2);">
+          <span style="color:var(--txt3);">CO-003 รอบ 1</span><span>TRK-H01 ✓ (รถห้วยขวางเดิม) · 10:00 ตามกำหนด</span>
+          <span style="color:var(--txt3);">CO-003 รอบ 2</span><span>TRK-R03 (จาก pool รัชดา) · 10:20</span>
+          <span style="color:var(--txt3);">CO-003 รอบ 3</span><span>TRK-R02 (จาก pool รัชดา) · 10:40</span>
+          <span style="color:var(--txt3);">CO-003 รอบ 4</span><span>TRK-R03 (กลับมารับอีกรอบ) · 11:00</span>
+          <span style="color:var(--txt3);">CO-003 รอบ 5</span><span>TRK-R02 (กลับมารับอีกรอบ) · 11:20</span>
+        </div>
+      </div>
+
+      <!-- Orders not affected -->
+      <div style="padding:8px 12px;background:var(--green-bg);border:1px solid rgba(30,107,60,.18);border-radius:var(--r);font-size:11px;color:var(--green);">
+        <strong>✓ Order อื่นในศูนย์ไม่กระทบ</strong> — CO-001 และ CO-002 ยังใช้รถตามเดิม · CO-004 ใช้ TRK-R04 ที่ยังว่างอยู่แทน TRK-R02
+      </div>
+
+    </div>
+    <div class="modal-footer" style="gap:8px;">
+      <button class="btn-secondary" onclick="closeRelocateModal()">ยกเลิก</button>
+      <div style="margin-right:auto;font-size:11px;color:var(--txt3);display:flex;align-items:center;gap:4px;">
+        <input type="checkbox" checked> <span>แจ้งโรงงานรัชดาและห้วยขวางอัตโนมัติ</span>
+      </div>
+      <button class="btn-primary" onclick="closeRelocateModal()">✓ ยืนยันโยกรถ และ Update Schedule</button>
+    </div>
+  </div>
+</div>
+═══════════════════════════════════ -->
+<div class="modal-overlay" id="interrupt-modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h3>⚠ รถไม่พอ — AI Impact Analysis</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Context: ปัญหาที่ตรวจพบ -->
+      <div style="padding:10px 12px;background:var(--red-bg);border:1px solid rgba(168,32,32,.2);border-radius:var(--r);margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:3px;">⚠ CO-003 — ห้วยขวาง Prestige · เวลา 10:00</div>
+        <div style="font-size:11px;color:var(--txt2);line-height:1.6;">ต้องการ <strong>5 รอบ / 25 คิว</strong> ทุก 20 นาที แต่ห้วยขวางมีรถว่าง <strong>1 คัน</strong> เท่านั้น<br>AI ตรวจพบว่าขาดรถ <strong>4 คัน</strong> ในช่วง 10:00–11:20</div>
+      </div>
+
+      <!-- AI Plan: โยกรถจากที่ไหน -->
+      <div style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">AI Plan — โยกรถเพิ่มจาก Pool</div>
+      <div class="impact-row">
+        <div class="impact-icon" style="background:var(--purple-bg);color:var(--purple);font-size:12px;">⇄</div>
+        <div class="impact-detail">
+          <strong>โยก TRK-R03 จากรัชดา → ห้วยขวาง</strong>
+          GPS ETA กลับถึงรัชดา 09:26 · เดินทางถึงห้วยขวาง ~09:48 · รับ CO-003 รอบที่ 2 และ 4 ได้ทัน
+        </div>
+      </div>
+      <div class="impact-row">
+        <div class="impact-icon" style="background:var(--purple-bg);color:var(--purple);font-size:12px;">⇄</div>
+        <div class="impact-detail">
+          <strong>โยก TRK-R02 จากรัชดา → รับงาน CO-003 รอบที่ 3 และ 5</strong>
+          ว่างหลัง CO-001 R4 เสร็จ 10:15 · เดินทางถึงห้วยขวาง ~10:32 · ทัน schedule
+        </div>
+      </div>
+
+      <!-- ผลกระทบต่อ Order อื่น -->
+      <div style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 8px;">ผลกระทบต่อ Order อื่นในศูนย์</div>
+      <div class="impact-row">
+        <div class="impact-icon ii-ok">✓</div>
+        <div class="impact-detail"><strong>CO-001 — Central พระราม 9</strong>ไม่กระทบ — TRK-R01 รับทุกรอบได้ตามเดิม ไม่มีการย้าย</div>
+      </div>
+      <div class="impact-row">
+        <div class="impact-icon ii-ok">✓</div>
+        <div class="impact-detail"><strong>CO-002 — ลาดพร้าว Tower</strong>ไม่กระทบ — ใช้รถจากลาดพร้าวเป็นหลัก TRK-R03 ที่โยกออกไม่ได้อยู่ใน plan นี้</div>
+      </div>
+      <div class="impact-row">
+        <div class="impact-icon ii-warn">!</div>
+        <div class="impact-detail"><strong>CO-004 — รัชดา Complex (11:00)</strong>TRK-R02 ถูกใช้งาน CO-003 ก่อน — AI จัดให้ TRK-R04 (ว่าง) รับ CO-004 แทน ไม่มีผลต่อเวลาส่ง</div>
+      </div>
+
+      <!-- AI Summary -->
+      <div style="margin-top:14px;padding:10px 12px;background:var(--purple-bg);border-radius:var(--r);border:1px solid rgba(84,64,184,.15);">
+        <div style="font-size:11px;font-weight:700;color:var(--purple);margin-bottom:6px;">✦ สรุป AI Plan</div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:11px;color:var(--txt2);">
+          <span style="color:var(--txt3);">โยกรถ</span><span>TRK-R03 และ TRK-R02 เข้า pool ห้วยขวาง</span>
+          <span style="color:var(--txt3);">CO-003 รอบที่ 1</span><span>TRK-H01 (รถเดิมที่ห้วยขวาง) รับได้ตามเวลา 10:00</span>
+          <span style="color:var(--txt3);">CO-003 รอบที่ 2–5</span><span>TRK-R03 และ TRK-R02 จาก pool ทุก 20 นาที</span>
+          <span style="color:var(--txt3);">ประสิทธิภาพ</span><span style="color:var(--green);font-weight:600;">รวมไม่ลดลง · ใช้รถที่ว่างอยู่แล้วใน pool</span>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn-secondary" onclick="closeModal()">ปรับ Manual</button>
+      <button class="btn-primary" onclick="closeModal()">✓ ยืนยัน AI Plan</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 1 — ภาพรวมศูนย์จ่าย (OVERVIEW)
+════════════════════════════════════════════════════════ -->
+<div class="page active" id="page-overview">
+  <nav class="topnav">
+    <div class="brand">
+      <div class="brand-logo"><span>S</span></div>
+      <div><div class="brand-name"><em>SCG</em> RMC Delivery AI</div><div class="brand-sub">AI-POWERED DELIVERY OPTIMIZATION</div></div>
+    </div>
+    <div class="nav-tabs">
+      <div class="nav-tab active" onclick="goPage('page-overview')">ภาพรวมศูนย์จ่าย</div>
+      <div class="nav-tab" onclick="goPage('page-orders')">Order ทั้งหมด <span class="nav-badge">2</span></div>
+      <div class="nav-tab" onclick="goPage('page-map')">🗺 แผนที่ Live</div>
+      <div class="nav-tab" onclick="goPage('page-create-order')">สร้าง Order ใหม่</div>
+      <div class="nav-tab" onclick="goPage('page-truck-plan')">แผนรถโม่รายวัน</div>
+      <div class="nav-tab" onclick="goPage('page-fleet')">ประมาณการรถ</div>
+      <div class="nav-tab" onclick="goPage('page-report')">รายงาน</div>
+    </div>
+    <div class="nav-right">
+      <div class="live-dot"></div><div class="nav-chip">ศูนย์จ่าย: <strong>ศูนย์รัชดา</strong></div>
+      <div class="nav-chip">27 เม.ย. 2569 · 09:14</div>
+      <button class="btn-new" onclick="goPage('page-create-order')">+ Order ใหม่</button>
+    </div>
+  </nav>
+  <div class="layout-3col" style="flex:1;overflow:hidden;">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sb-hdr">โรงงานในศูนย์รัชดา</div>
+      <div class="plant-card active">
+        <div class="pc-row1"><div class="pc-name">โรงงานรัชดา</div><span class="badge b-go" style="font-size:9px">หลัก</span></div>
+        <div style="font-size:11px;color:var(--txt2);margin-bottom:5px;">รถว่าง 3 / 8 · กำลังวิ่ง 5</div>
+        <div class="pc-bars">
+          <div class="pc-bar-g"><div class="pc-bar" style="height:12px;background:var(--blue-mid)"></div><div class="pc-bar-lbl">ว่าง</div></div>
+          <div class="pc-bar-g"><div class="pc-bar" style="height:20px;background:var(--amber)"></div><div class="pc-bar-lbl">วิ่ง</div></div>
+          <div class="pc-bar-g"><div class="pc-bar" style="height:7px;background:var(--green)"></div><div class="pc-bar-lbl">กลับ</div></div>
+        </div>
+      </div>
+      <div class="plant-card">
+        <div class="pc-row1"><div class="pc-name">โรงงานลาดพร้าว</div></div>
+        <div style="font-size:11px;color:var(--txt2);margin-bottom:5px;">รถว่าง 5 / 6 · กำลังวิ่ง 1</div>
+        <div class="pc-bars">
+          <div class="pc-bar-g"><div class="pc-bar" style="height:20px;background:var(--blue-mid)"></div><div class="pc-bar-lbl">ว่าง</div></div>
+          <div class="pc-bar-g"><div class="pc-bar" style="height:5px;background:var(--amber)"></div><div class="pc-bar-lbl">วิ่ง</div></div>
+          <div class="pc-bar-g"><div class="pc-bar" style="height:3px;background:var(--green)"></div><div class="pc-bar-lbl">กลับ</div></div>
+        </div>
+      </div>
+      <div class="plant-card">
+        <div class="pc-row1"><div class="pc-name">โรงงานห้วยขวาง</div><span style="font-size:10px;color:var(--red);font-weight:600;">งานล้น ⚠</span></div>
+        <div style="font-size:11px;color:var(--txt2);margin-bottom:5px;">รถว่าง 1 / 5 · กำลังวิ่ง 4</div>
+        <div class="pc-bars">
+          <div class="pc-bar-g"><div class="pc-bar" style="height:5px;background:var(--blue-mid)"></div><div class="pc-bar-lbl">ว่าง</div></div>
+          <div class="pc-bar-g"><div class="pc-bar" style="height:20px;background:var(--amber)"></div><div class="pc-bar-lbl">วิ่ง</div></div>
+          <div class="pc-bar-g"><div class="pc-bar" style="height:11px;background:var(--green)"></div><div class="pc-bar-lbl">กลับ</div></div>
+        </div>
+      </div>
+      <div class="pool-badge"><div class="icon">⇄</div><div><strong>Pool เดียวกัน</strong><br>รถโม่ทั้ง 3 โรงงานสามารถโยกและช่วยกันจัดส่งได้ภายใน pool นี้</div></div>
+      <div class="sb-divider"></div>
+      <div class="sb-summary">
+        <div class="sb-hdr" style="padding:0 0 6px">สรุปรถทั้งศูนย์</div>
+        <div class="sb-sum-row"><span>รถทั้งหมด</span><strong>19 คัน</strong></div>
+        <div class="sb-sum-row"><span>กำลังวิ่ง</span><strong style="color:var(--amber)">7 คัน</strong></div>
+        <div class="sb-sum-row"><span>กำลังกลับ</span><strong style="color:var(--blue)">3 คัน</strong></div>
+        <div class="sb-sum-row"><span>ว่างอยู่</span><strong style="color:var(--green)">9 คัน</strong></div>
+        <div class="sb-sum-ai"><span>✦ AI แนะนำใช้วันนี้</span><span>15 คัน</span></div>
+      </div>
+    </div>
+
+    <!-- MAIN CENTER -->
+    <div class="main-area">
+      <div class="kpi-bar">
+        <div class="kpi"><div class="kpi-lbl">Order ศูนย์วันนี้</div><div class="kpi-val">12</div><div class="kpi-sub">48 Order โรงงาน</div></div>
+        <div class="kpi"><div class="kpi-lbl">คิวรวม</div><div class="kpi-val">186</div><div class="kpi-sub"><span class="up">74</span> ส่งแล้ว · 112 คงเหลือ</div></div>
+        <div class="kpi"><div class="kpi-lbl">ต้องโยกรถ</div><div class="kpi-val warn">2</div><div class="kpi-sub">AI แนะนำดำเนินการ</div></div>
+        <div class="kpi"><div class="kpi-lbl">ประสิทธิภาพรถ</div><div class="kpi-val">84%</div><div class="kpi-sub"><span class="up">+9%</span> vs เมื่อวาน</div></div>
+      </div>
+      <div class="sec-tabs">
+        <div class="stab active">Order ศูนย์ / Order โรงงาน</div>
+        <div class="stab">Timeline Gantt <span class="stab-badge">2</span></div>
+        <div class="stab">สถานะรถทั้งหมด</div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th style="width:22px"></th><th>Order ศูนย์</th><th>Site / หน่วยงาน</th><th>เวลาเริ่ม</th><th>คิวรวม/รอบ</th><th>ความถี่</th><th>สถานะ</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr class="sel"><td class="expand-icon">▾</td><td><strong>CO-001</strong></td><td>Central พระราม 9</td><td>09:00</td><td>20 คิว / 4 รอบ</td><td>ทุก 30 นาที</td><td><span class="badge b-go">กำลังส่ง</span></td><td><button style="font-size:10px;padding:3px 8px;border:1px solid var(--border2);border-radius:4px;background:transparent;cursor:pointer;color:var(--txt2);">ดูสถานะ</button></td></tr>
+            <tr class="sub-tr"><td></td><td colspan="7"><span class="plant-tag">รัชดา</span>PO-001-A · 3 รอบ · 15 คิว · TRK-R01, R02 &nbsp;|&nbsp; <span class="plant-tag">ลาดพร้าว</span>PO-001-B · 1 รอบ · 5 คิว · TRK-L01 &nbsp;<span class="gps-badge">● GPS Live</span></td></tr>
+            <tr><td class="expand-icon">▾</td><td><strong>CO-002</strong></td><td>ลาดพร้าว Tower</td><td>09:30</td><td>15 คิว / 3 รอบ</td><td>ทุก 30 นาที</td><td><span class="badge b-ai">AI แนะนำ</span></td><td><button onclick="openAIPlanModal()" style="font-size:10px;padding:3px 8px;border:1px solid rgba(84,64,184,.35);border-radius:4px;background:var(--purple-bg);cursor:pointer;color:var(--purple);font-weight:600;">✦ ดู AI Plan</button></td></tr>
+            <tr class="sub-tr"><td></td><td colspan="7">ยังไม่ assign — <span style="color:var(--purple);font-weight:600;">✦ AI แนะนำ: ลาดพร้าว 2 รอบ + รัชดา 1 รอบ (ประหยัดระยะทาง 18%)</span></td></tr>
+            <tr><td class="expand-icon">▸</td><td><strong>CO-003</strong></td><td>ห้วยขวาง Prestige</td><td>10:00</td><td>25 คิว / 5 รอบ</td><td>ทุก 20 นาที</td><td><span class="badge b-err">รถไม่พอ ⚠</span></td><td><button onclick="openRelocateModal()" style="font-size:10px;padding:3px 8px;border:1px solid rgba(143,90,0,.35);border-radius:4px;background:var(--amber-bg);cursor:pointer;color:var(--amber);font-weight:600;">⇄ โยกรถ</button></td></tr>
+            <tr><td class="expand-icon">▸</td><td><strong>CO-004</strong></td><td>รัชดา Complex</td><td>11:00</td><td>10 คิว / 2 รอบ</td><td>ทุก 45 นาที</td><td><span class="badge b-wait">รอดำเนินการ</span></td><td><button style="font-size:10px;padding:3px 8px;border:1px solid var(--border2);border-radius:4px;background:transparent;cursor:pointer;color:var(--txt2);">แก้ไข</button></td></tr>
+            <tr><td class="expand-icon">▸</td><td><strong>CO-005</strong></td><td>Asoke Junction</td><td>07:00</td><td>10 คิว / 2 รอบ</td><td>ทุก 60 นาที</td><td><span class="badge b-ok">เสร็จสิ้น</span></td><td><button style="font-size:10px;padding:3px 8px;border:1px solid var(--border2);border-radius:4px;background:transparent;cursor:pointer;color:var(--txt2);">ดูสรุป</button></td></tr>
+          </tbody>
+        </table>
+        <div class="tl-wrap" style="background:var(--surf);margin-top:1px;">
+          <div class="tl-title">Timeline รถโม่ — ศูนย์รัชดา วันนี้</div>
+          <div class="tl-head"><div class="tl-spacer"></div><div class="tl-hours"><div class="tl-h">08:00</div><div class="tl-h">09:00</div><div class="tl-h">10:00</div><div class="tl-h">11:00</div><div class="tl-h">12:00</div><div class="tl-h">13:00</div></div></div>
+          <div class="tl-row"><div class="tl-lbl">TRK-R01 รัชดา</div><div class="tl-track"><div class="blk bl-b" style="left:0%;width:13%">CO-005</div><div class="blk bl-g" style="left:15%;width:16%">CO-001 R1</div><div class="blk bl-g" style="left:33%;width:16%">CO-001 R2</div><div class="blk bl-p" style="left:51%;width:15%">CO-002</div></div></div>
+          <div class="tl-row"><div class="tl-lbl">TRK-R02 รัชดา</div><div class="tl-track"><div class="blk bl-e" style="left:0%;width:15%">ว่าง</div><div class="blk bl-g" style="left:17%;width:16%">CO-001 R3</div><div class="blk bl-g" style="left:35%;width:16%">CO-001 R4</div><div class="blk bl-a" style="left:53%;width:16%">CO-003</div></div></div>
+          <div class="tl-row"><div class="tl-lbl">TRK-L01 ลาดพร้าว</div><div class="tl-track"><div class="blk bl-g" style="left:0%;width:13%">CO-001</div><div class="blk bl-p" style="left:15%;width:16%">CO-002 R1</div><div class="blk bl-p" style="left:33%;width:16%">CO-002 R2</div><div class="blk bl-e" style="left:51%;width:18%">ว่าง (pool)</div></div></div>
+          <div class="tl-row"><div class="tl-lbl">TRK-H01 ห้วยขวาง</div><div class="tl-track"><div class="blk bl-a" style="left:2%;width:16%">CO-003 R1</div><div class="blk bl-a" style="left:20%;width:16%">CO-003 R2</div><div class="blk bl-a" style="left:38%;width:16%">CO-003 R3</div><div class="blk bl-e" style="left:56%;width:14%">ว่าง</div></div></div>
+          <div class="tl-row"><div class="tl-lbl">TRK-R03 โยก→ห้วย</div><div class="tl-track"><div class="blk bl-pool" style="left:0%;width:28%">Pool (โยกไปห้วยขวาง)</div><div class="blk bl-a" style="left:30%;width:16%">CO-003 R4</div><div class="blk bl-a" style="left:48%;width:16%">CO-003 R5</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT AI PANEL -->
+    <div class="ai-panel">
+      <div class="aip-hdr"><div class="ai-pulse"></div><h3>AI Delivery Agent</h3><span class="sub">  </span></div>
+      <div class="aip-scroll">
+        <div class="alert-box">
+          <div class="ab-title">⚠ ห้วยขวางรถไม่พอ</div>
+          <div class="ab-body">CO-003 ต้องการ 5 รอบ แต่รถว่างมี 1 คัน AI แนะนำโยก TRK-R03 จากรัชดา (ETA GPS: 10:08)</div>
+          <div class="ab-btns"><button class="ab-btn p" onclick="openModal()">ยืนยัน AI Plan</button><button class="ab-btn">ดูรายละเอียด</button></div>
+        </div>
+        <div class="gps-strip">
+          <div class="gps-strip-title">📡 GPS Real-time — อัปเดต 09:14:32</div>
+          <div class="gps-row"><span>TRK-R01 → Central พระราม 9</span><strong>ETA 09:18</strong></div>
+          <div class="gps-row"><span>TRK-L01 → ลาดพร้าว Tower</span><strong>ETA 09:31</strong></div>
+          <div class="gps-row"><span>TRK-H01 → ห้วยขวาง Prestige</span><strong>ETA 09:15</strong></div>
+          <div class="gps-row"><span>TRK-R03 กลับรัชดา</span><strong>ETA 09:26</strong></div>
+        </div>
+        <div class="sug ai"><div class="sug-title">CO-002: แนะนำแบ่ง Order โรงงาน</div><div class="sug-body">ลาดพร้าวว่าง 5 คัน ใกล้กว่ารัชดา 12 นาที แนะนำสร้าง PO-002-B จากลาดพร้าว 2 รอบ + PO-002-A จากรัชดา 1 รอบ</div><div class="sug-link">สร้าง Order โรงงานอัตโนมัติ →</div></div>
+        <div class="relocate-box">
+          <div class="rb-hdr"><span>โยกรถข้ามโรงงาน</span><span class="rb-note">ภายใน pool เท่านั้น</span></div>
+          <div class="rb-body">
+            <div class="rb-row"><label>รถ</label><select><option>TRK-R03 (รัชดา) — ETA กลับ 09:26</option><option>TRK-L02 (ลาดพร้าว)</option><option>TRK-L03 (ลาดพร้าว)</option></select></div>
+            <div class="rb-arrow">▼ โยกไปโรงงาน</div>
+            <div class="rb-row"><label>โรงงาน</label><select><option>ห้วยขวาง (งานล้น)</option><option>รัชดา</option><option>ลาดพร้าว</option></select></div>
+            <div class="rb-row"><label>เหตุผล</label><select><option>รถไม่พอ / งานล้น</option><option>ใกล้ site มากกว่า</option><option>สมดุล pool</option></select></div>
+            <button class="btn-confirm">ยืนยันโยกรถ</button>
+          </div>
+        </div>
+        <div class="sug suc"><div class="sug-title">ประมาณการรถวันนี้</div><div class="sug-body">จาก 12 Order ศูนย์ (186 คิว) AI คำนวณต้องใช้จริง 15 คัน จาก 19 คัน — ประหยัดได้ ~21%</div><div class="sug-link" onclick="goPage('page-fleet')">ดูรายงานเต็ม →</div></div>
+        <div class="sug inf"><div class="sug-title">รับ Order ใหม่ได้ไหม?</div><div class="sug-body">ขณะนี้รถว่าง 9 คัน · โรงงานที่แนะนำคือลาดพร้าว (ว่างสูงสุด + ETA ดี)</div><div class="sug-link" onclick="goPage('page-create-order')">จำลองสถานการณ์ →</div></div>
+      </div>
+      <div class="ai-input-area">
+        <div class="ai-row"><input type="text" placeholder="ถามเกี่ยวกับ Order หรือรถโม่..."/><button>ถาม</button></div>
+        <div class="ai-chips">
+          <button class="ai-chip" onclick="sendPrompt('โยกรถช่วยห้วยขวางดีที่สุดคือคันไหน')">โยกรถช่วยห้วยขวาง</button>
+          <button class="ai-chip" onclick="sendPrompt('CO-003 จะส่งทันเวลาไหม')">CO-003 ทันไหม?</button>
+          <button class="ai-chip" onclick="sendPrompt('ถ้ารับ Order ใหม่ 11:00 จะมีรถไหม')">Order ใหม่ 11:00 ได้ไหม</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 2 — ORDER ทั้งหมด
+════════════════════════════════════════════════════════ -->
+<div class="page" id="page-orders">
+  <nav class="topnav">
+    <div class="brand"><div class="brand-logo"><span>S</span></div><div><div class="brand-name"><em>SCG</em> RMC Delivery AI</div><div class="brand-sub">AI-POWERED DELIVERY OPTIMIZATION</div></div></div>
+    <div class="nav-tabs">
+      <div class="nav-tab" onclick="goPage('page-overview')">ภาพรวมศูนย์จ่าย</div>
+      <div class="nav-tab active" onclick="goPage('page-orders')">Order ทั้งหมด <span class="nav-badge">2</span></div>
+      <div class="nav-tab" onclick="goPage('page-map')">🗺 แผนที่ Live</div>
+      <div class="nav-tab" onclick="goPage('page-create-order')">สร้าง Order ใหม่</div>
+      <div class="nav-tab" onclick="goPage('page-truck-plan')">แผนรถโม่รายวัน</div>
+      <div class="nav-tab" onclick="goPage('page-fleet')">ประมาณการรถ</div>
+      <div class="nav-tab" onclick="goPage('page-report')">รายงาน</div>
+    </div>
+    <div class="nav-right"><div class="live-dot"></div><div class="nav-chip">ศูนย์จ่าย: <strong>ศูนย์รัชดา</strong></div><div class="nav-chip">27 เม.ย. 2569</div><button class="btn-new" onclick="goPage('page-create-order')">+ Order ใหม่</button></div>
+  </nav>
+  <div class="layout-2col" style="flex:1;overflow:hidden;">
+    <div style="display:flex;flex-direction:column;overflow:hidden;">
+      <div class="filter-bar">
+        <label>วันที่</label><input type="date" value="2026-04-27">
+        <label>ศูนย์</label><select><option>ศูนย์รัชดา</option><option>ทุกศูนย์</option></select>
+        <label>สถานะ</label><select><option>ทั้งหมด</option><option>กำลังส่ง</option><option>AI แนะนำ</option><option>รถไม่พอ</option></select>
+        <span style="margin-left:auto;font-size:12px;color:var(--txt2);">พบ 12 Order ศูนย์</span>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th style="width:22px"></th><th>Order ศูนย์</th><th>Site</th><th>เวลาเริ่ม</th><th>ปริมาณ</th><th>ความถี่</th><th>โรงงาน</th><th>สถานะ</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr class="sel"><td class="expand-icon">▾</td><td><strong>CO-001</strong></td><td>Central พระราม 9</td><td>09:00</td><td>20 คิว / 4 รอบ</td><td>30 นาที</td><td><span class="plant-tag">รัชดา</span><span class="plant-tag">ลาดพร้าว</span></td><td><span class="badge b-go">กำลังส่ง</span></td><td><button style="font-size:10px;padding:3px 7px;border:1px solid var(--border2);border-radius:4px;background:transparent;cursor:pointer;color:var(--txt2)">แก้ไข</button></td></tr>
+            <tr class="sub-tr"><td></td><td colspan="8"><span class="plant-tag">รัชดา</span>PO-001-A · 3 รอบ · 15 คิว · TRK-R01, R02 (ส่งแล้ว 2 รอบ) &nbsp;|&nbsp; <span class="plant-tag">ลาดพร้าว</span>PO-001-B · 1 รอบ · 5 คิว · TRK-L01 (รอ) &nbsp;<span class="gps-badge">● GPS Live</span></td></tr>
+            <tr><td class="expand-icon">▾</td><td><strong>CO-002</strong></td><td>ลาดพร้าว Tower</td><td>09:30</td><td>15 คิว / 3 รอบ</td><td>30 นาที</td><td><span style="font-size:10px;color:var(--purple);font-weight:600;">✦ AI กำลัง assign</span></td><td><span class="badge b-ai">AI แนะนำ</span></td><td><button onclick="openAIPlanModal()" style="font-size:10px;padding:3px 7px;border:1px solid rgba(84,64,184,.3);border-radius:4px;background:var(--purple-bg);cursor:pointer;color:var(--purple);font-weight:600;">✦ ดู AI Plan</button></td></tr>
+            <tr class="sub-tr"><td></td><td colspan="8">ยังไม่ assign — <span style="color:var(--purple);font-weight:600;">AI แนะนำ: ลาดพร้าว 2 รอบ + รัชดา 1 รอบ (ประหยัดระยะทาง 18%)</span></td></tr>
+            <tr><td class="expand-icon">▸</td><td><strong>CO-003</strong></td><td>ห้วยขวาง Prestige</td><td>10:00</td><td>25 คิว / 5 รอบ</td><td>20 นาที</td><td><span class="plant-tag">ห้วยขวาง</span></td><td><span class="badge b-err">รถไม่พอ</span></td><td><button onclick="openRelocateModal()" style="font-size:10px;padding:3px 7px;border:1px solid rgba(143,90,0,.35);border-radius:4px;background:var(--amber-bg);cursor:pointer;color:var(--amber);font-weight:600;">⇄ โยกรถ</button></td></tr>
+            <tr><td class="expand-icon">▸</td><td><strong>CO-004</strong></td><td>รัชดา Complex</td><td>11:00</td><td>10 คิว / 2 รอบ</td><td>45 นาที</td><td><span class="plant-tag">รัชดา</span></td><td><span class="badge b-wait">รอดำเนินการ</span></td><td><button style="font-size:10px;padding:3px 7px;border:1px solid var(--border2);border-radius:4px;background:transparent;cursor:pointer;color:var(--txt2)">แก้ไข</button></td></tr>
+            <tr><td class="expand-icon">▸</td><td><strong>CO-005</strong></td><td>Asoke Junction</td><td>07:00</td><td>10 คิว / 2 รอบ</td><td>60 นาที</td><td><span class="plant-tag">ลาดพร้าว</span></td><td><span class="badge b-ok">เสร็จสิ้น</span></td><td><button style="font-size:10px;padding:3px 7px;border:1px solid var(--border2);border-radius:4px;background:transparent;cursor:pointer;color:var(--txt2)">ดูสรุป</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <!-- ORDER DETAIL PANEL -->
+    <div class="order-detail-panel">
+      <div class="odp-hdr"><div class="title">CO-001 — รายละเอียด</div><span class="badge b-go">กำลังส่ง</span></div>
+      <div class="odp-scroll">
+        <div class="odp-section">ข้อมูล Order ศูนย์</div>
+        <div class="odp-grid">
+          <span class="odp-lbl">Site</span><span class="odp-val">Central พระราม 9</span>
+          <span class="odp-lbl">เวลาเริ่ม</span><span class="odp-val">09:00 น.</span>
+          <span class="odp-lbl">คิวรวม</span><span class="odp-val">20 คิว</span>
+          <span class="odp-lbl">จำนวนรอบ</span><span class="odp-val">4 รอบ</span>
+          <span class="odp-lbl">ความถี่</span><span class="odp-val">ทุก 30 นาที</span>
+          <span class="odp-lbl">ประเภท</span><span class="odp-val">C30/37</span>
+        </div>
+        <div class="odp-section">Order โรงงาน</div>
+        <div class="po-card">
+          <div class="po-card-hdr"><span class="po-card-name">PO-001-A · โรงงานรัชดา</span><span class="badge b-go">ส่งแล้ว 2/3</span></div>
+          <div class="po-trips">
+            <span>รอบ 1 09:00 ✓</span><span>TRK-R01</span><span class="gps-badge">● Live</span>
+            <span>รอบ 2 09:30 ✓</span><span>TRK-R01</span><span class="gps-badge">● Live</span>
+            <span>รอบ 3 10:00 ⏳</span><span>TRK-R02</span><span style="font-size:10px;color:var(--amber)">ETA 10:04</span>
+          </div>
+        </div>
+        <div class="po-card">
+          <div class="po-card-hdr"><span class="po-card-name">PO-001-B · โรงงานลาดพร้าว</span><span class="badge b-wait">รอ</span></div>
+          <div class="po-trips"><span>รอบ 4 10:30</span><span>TRK-L01</span><span style="font-size:10px;color:var(--blue)">ETA GPS 10:28</span></div>
+        </div>
+        <div class="odp-section">ความคืบหน้า</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:50%"></div></div>
+        <div style="font-size:11px;color:var(--txt2);margin-top:4px;">ส่งแล้ว 10/20 คิว (50%) · เหลือ 2 รอบ</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 3 — แผนที่ LIVE
+════════════════════════════════════════════════════════ -->
+<div class="page" id="page-map">
+  <nav class="topnav">
+    <div class="brand"><div class="brand-logo"><span>S</span></div><div><div class="brand-name"><em>SCG</em> RMC Delivery AI</div><div class="brand-sub">AI-POWERED DELIVERY OPTIMIZATION</div></div></div>
+    <div class="nav-tabs">
+      <div class="nav-tab" onclick="goPage('page-overview')">ภาพรวมศูนย์จ่าย</div>
+      <div class="nav-tab" onclick="goPage('page-orders')">Order ทั้งหมด</div>
+      <div class="nav-tab active">🗺 แผนที่ Live</div>
+      <div class="nav-tab" onclick="goPage('page-create-order')">สร้าง Order ใหม่</div>
+      <div class="nav-tab" onclick="goPage('page-truck-plan')">แผนรถโม่รายวัน</div>
+      <div class="nav-tab" onclick="goPage('page-fleet')">ประมาณการรถ</div>
+      <div class="nav-tab" onclick="goPage('page-report')">รายงาน</div>
+    </div>
+    <div class="nav-right"><div class="live-dot"></div><div class="nav-chip">ศูนย์จ่าย: <strong>ศูนย์รัชดา</strong></div><div class="nav-chip">27 เม.ย. 2569 · 09:14</div><button class="btn-new" onclick="goPage('page-create-order')">+ Order ใหม่</button></div>
+  </nav>
+  <div style="display:flex;flex:1;overflow:hidden;">
+    <div class="map-wrap">
+      <div id="main-map"></div>
+      <div class="map-toolbar">
+        <button class="mtb active" id="ml-all" onclick="filterLayer('all')">ทั้งหมด</button>
+        <button class="mtb" id="ml-moving" onclick="filterLayer('moving')">🚛 กำลังวิ่ง (7)</button>
+        <button class="mtb" id="ml-idle" onclick="filterLayer('idle')">🟢 ว่าง (9)</button>
+        <button class="mtb" id="ml-sites" onclick="filterLayer('sites')">📍 Sites</button>
+        <button class="mtb" id="ml-pool" onclick="filterLayer('pool')">⇄ Pool โยก (1)</button>
+      </div>
+      <div class="map-time"><div class="live-dot"></div>GPS Live · อัปเดตทุก 30 วิ</div>
+      <div class="map-legend">
+        <div class="ml-title">สัญลักษณ์</div>
+        <div class="ml-row" style="font-weight:700;color:var(--navy);border-bottom:1px solid var(--border);padding-bottom:5px;margin-bottom:5px;">
+          <div class="ml-sq" style="background:var(--blue);border-radius:4px;border:2px solid var(--blue)"></div>โรงงาน (แสดงเสมอ)
+        </div>
+        <div class="ml-row"><div style="font-size:8px;font-weight:700;padding:1px 4px;background:#EAF2FC;color:var(--blue);border-radius:3px;margin-right:2px;">R</div>รัชดา · ว่าง 3 คัน</div>
+        <div class="ml-row"><div style="font-size:8px;font-weight:700;padding:1px 4px;background:#E5F4F1;color:var(--teal);border-radius:3px;margin-right:2px;">L</div>ลาดพร้าว · ว่าง 5 คัน</div>
+        <div class="ml-row"><div style="font-size:8px;font-weight:700;padding:1px 4px;background:var(--red-bg);color:var(--red);border-radius:3px;margin-right:2px;">H</div>ห้วยขวาง · ว่าง 1 คัน ⚠</div>
+        <div style="height:1px;background:var(--border);margin:5px 0;"></div>
+        <div class="ml-row"><div class="ml-dot" style="background:var(--accent)"></div>รถกำลังวิ่ง (GPS)</div>
+        <div class="ml-row"><div class="ml-dot" style="background:var(--green)"></div>รถว่าง / พร้อมส่ง</div>
+        <div class="ml-row"><div class="ml-dot" style="background:var(--amber)"></div>รถกลับโรงงาน</div>
+        <div class="ml-row"><div class="ml-dot" style="background:var(--purple)"></div>รถใน Pool โยก</div>
+        <div style="height:1px;background:var(--border);margin:5px 0;"></div>
+        <div class="ml-row"><div class="ml-dot" style="background:var(--red);border-radius:2px;width:10px;height:14px"></div>Site / Order</div>
+      </div>
+      <div class="map-ai-card">
+        <div class="mac-title"><div class="ai-pulse"></div>AI แนะนำ</div>
+        <div class="mac-body">TRK-R03 อยู่ใกล้ห้วยขวาง Prestige มากที่สุด (GPS ETA 10:08) — โยก 1 คันจะแก้ปัญหา CO-003 รถไม่พอได้ทันที</div>
+        <button class="mac-btn" onclick="openModal()">ยืนยันโยก TRK-R03</button>
+      </div>
+    </div>
+    <!-- TRUCK LIST -->
+    <div class="truck-list-panel">
+      <div class="tlp-hdr"><h3>รถโม่ทั้งหมด (19)</h3><select style="font-size:11px;padding:3px 6px;border:1px solid var(--border2);border-radius:4px;color:var(--txt2);"><option>ทุกโรงงาน</option><option>รัชดา</option><option>ลาดพร้าว</option><option>ห้วยขวาง</option></select></div>
+      <div class="tlp-scroll">
+        <div class="truck-group">กำลังวิ่ง — GPS Live (7)</div>
+        <div class="truck-item sel"><div class="ti-icon" style="background:var(--accent-bg);color:var(--accent);">🚛</div><div><div class="ti-id">TRK-R01</div><div class="ti-plant">โรงงานรัชดา</div></div><div class="ti-right"><span class="badge b-go" style="font-size:9px">วิ่ง</span><div class="ti-eta gps-live">GPS · ETA 09:18</div></div></div>
+        <div class="truck-item"><div class="ti-icon" style="background:var(--accent-bg);color:var(--accent);">🚛</div><div><div class="ti-id">TRK-R02</div><div class="ti-plant">โรงงานรัชดา</div></div><div class="ti-right"><span class="badge b-go" style="font-size:9px">วิ่ง</span><div class="ti-eta gps-live">GPS · ETA 09:22</div></div></div>
+        <div class="truck-item"><div class="ti-icon" style="background:var(--accent-bg);color:var(--accent);">🚛</div><div><div class="ti-id">TRK-H01</div><div class="ti-plant">โรงงานห้วยขวาง</div></div><div class="ti-right"><span class="badge b-go" style="font-size:9px">วิ่ง</span><div class="ti-eta gps-live">GPS · ETA 09:15</div></div></div>
+        <div class="truck-item"><div class="ti-icon" style="background:var(--accent-bg);color:var(--accent);">🚛</div><div><div class="ti-id">TRK-L01</div><div class="ti-plant">โรงงานลาดพร้าว</div></div><div class="ti-right"><span class="badge b-go" style="font-size:9px">วิ่ง</span><div class="ti-eta gps-live">GPS · ETA 09:31</div></div></div>
+        <div class="truck-group">กลับโรงงาน — GPS (3)</div>
+        <div class="truck-item"><div class="ti-icon" style="background:var(--amber-bg);color:var(--amber);">↩</div><div><div class="ti-id">TRK-R03</div><div class="ti-plant">รัชดา (→โยกห้วยขวาง)</div></div><div class="ti-right"><span class="badge b-wait" style="font-size:9px">กลับ</span><div class="ti-eta gps-live">GPS · ETA 09:26</div></div></div>
+        <div class="truck-item"><div class="ti-icon" style="background:var(--amber-bg);color:var(--amber);">↩</div><div><div class="ti-id">TRK-L02</div><div class="ti-plant">โรงงานลาดพร้าว</div></div><div class="ti-right"><span class="badge b-wait" style="font-size:9px">กลับ</span><div class="ti-eta gps-live">GPS · ETA 09:41</div></div></div>
+        <div class="truck-group">Pool โยก (1)</div>
+        <div class="truck-item"><div class="ti-icon" style="background:var(--purple-bg);color:var(--purple);">⇄</div><div><div class="ti-id">TRK-R03</div><div class="ti-plant">รัชดา → ห้วยขวาง</div></div><div class="ti-right"><span class="badge b-ai" style="font-size:9px">Pool</span><div class="ti-eta">รอยืนยัน AI</div></div></div>
+        <div class="truck-group">ว่างอยู่ (8)</div>
+        <div class="truck-item"><div class="ti-icon" style="background:var(--green-bg);color:var(--green);">✓</div><div><div class="ti-id">TRK-L03</div><div class="ti-plant">โรงงานลาดพร้าว</div></div><div class="ti-right"><span class="badge b-ok" style="font-size:9px">ว่าง</span></div></div>
+        <div class="truck-item"><div class="ti-icon" style="background:var(--green-bg);color:var(--green);">✓</div><div><div class="ti-id">TRK-L04</div><div class="ti-plant">โรงงานลาดพร้าว</div></div><div class="ti-right"><span class="badge b-ok" style="font-size:9px">ว่าง</span></div></div>
+        <div class="truck-item"><div class="ti-icon" style="background:var(--green-bg);color:var(--green);">✓</div><div><div class="ti-id">TRK-H02</div><div class="ti-plant">โรงงานห้วยขวาง</div></div><div class="ti-right"><span class="badge b-ok" style="font-size:9px">ว่าง</span></div></div>
+      </div>
+      <div class="truck-detail-panel">
+        <div class="tdp-title">TRK-R01 — รายละเอียด</div>
+        <div class="tdp-row"><span>สถานะ</span><strong style="color:var(--accent)">กำลังวิ่ง</strong></div>
+        <div class="tdp-row"><span>GPS Position</span><strong class="gps-live">● 13.748, 100.562</strong></div>
+        <div class="tdp-row"><span>มุ่งหน้า</span><strong>Central พระราม 9</strong></div>
+        <div class="tdp-row"><span>ETA ถึง site</span><strong>09:18 น. (~4 นาที)</strong></div>
+        <div class="tdp-row"><span>ETA กลับ</span><strong>09:56 น.</strong></div>
+        <div class="tdp-row"><span>Order</span><strong>CO-001 รอบ 2</strong></div>
+        <button style="width:100%;margin-top:8px;padding:6px;font-size:11px;background:transparent;border:1px solid var(--border2);border-radius:var(--r-sm);cursor:pointer;color:var(--txt2);">ดู Trip ทั้งวัน</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 4 — สร้าง ORDER ใหม่
+════════════════════════════════════════════════════════ -->
+<div class="page" id="page-create-order">
+  <nav class="topnav">
+    <div class="brand"><div class="brand-logo"><span>S</span></div><div><div class="brand-name"><em>SCG</em> RMC Delivery AI</div><div class="brand-sub">AI-POWERED DELIVERY OPTIMIZATION</div></div></div>
+    <div class="nav-tabs">
+      <div class="nav-tab" onclick="goPage('page-overview')">ภาพรวมศูนย์จ่าย</div>
+      <div class="nav-tab" onclick="goPage('page-orders')">Order ทั้งหมด</div>
+      <div class="nav-tab" onclick="goPage('page-map')">🗺 แผนที่ Live</div>
+      <div class="nav-tab active">สร้าง Order ใหม่</div>
+      <div class="nav-tab" onclick="goPage('page-truck-plan')">แผนรถโม่รายวัน</div>
+      <div class="nav-tab" onclick="goPage('page-fleet')">ประมาณการรถ</div>
+      <div class="nav-tab" onclick="goPage('page-report')">รายงาน</div>
+    </div>
+    <div class="nav-right"><div class="nav-chip">ศูนย์จ่าย: <strong>ศูนย์รัชดา</strong></div></div>
+  </nav>
+  <div class="breadcrumb"><span>Order ทั้งหมด</span><span class="sep">/</span><span style="color:var(--txt)">สร้าง Order ใหม่</span></div>
+  <div class="layout-2col" style="flex:1;overflow:hidden;">
+    <div style="display:flex;flex-direction:column;overflow:hidden;">
+      <div class="form-scroll">
+        <div style="font-size:18px;font-weight:700;margin-bottom:4px;">สร้าง Order ศูนย์ใหม่</div>
+        <div style="font-size:12px;color:var(--txt2);margin-bottom:16px;">AI จะคำนวณการแบ่ง Order โรงงานและ assign รถโม่ให้อัตโนมัติ</div>
+        <div class="form-section">ข้อมูล Order ศูนย์</div>
+        <div class="form-grid">
+          <div class="field"><label>ชื่อ Site / หน่วยงาน<span class="field-req">*</span></label><input type="text" placeholder="เช่น Central พระราม 9"></div>
+          <div class="field"><label>ที่อยู่ Site / พิกัด GPS</label><input type="text" placeholder="กรอกที่อยู่หรือ GPS coordinate"></div>
+          <div class="field"><label>ประเภทคอนกรีต<span class="field-req">*</span></label><select><option>C25/30</option><option selected>C30/37</option><option>C35/45</option><option>C40/50</option></select></div>
+          <div class="field"><label>วันที่จัดส่ง<span class="field-req">*</span></label><input type="date" value="2026-04-27"></div>
+          <div class="field"><label>เวลาเริ่มจัดส่ง<span class="field-req">*</span></label><input type="time" value="09:00"></div>
+          <div class="field"><label>ปริมาณทั้งหมด (คิว)<span class="field-req">*</span></label><input type="number" value="20" min="5"><div class="field-hint">5 คิว / รอบ / รถ 1 คัน</div></div>
+          <div class="field"><label>คิวต่อรอบ<span class="field-req">*</span></label><select><option>5 คิว (1 คัน)</option><option>10 คิว (2 คัน)</option><option>15 คิว (3 คัน)</option></select></div>
+          <div class="field"><label>ความถี่การส่ง<span class="field-req">*</span></label><select><option>ทุก 20 นาที</option><option selected>ทุก 30 นาที</option><option>ทุก 45 นาที</option><option>ทุก 60 นาที</option></select></div>
+          <div class="field"><label>ชื่อผู้ติดต่อหน้างาน</label><input type="text" placeholder="ชื่อ-นามสกุล"></div>
+          <div class="field"><label>เบอร์โทร</label><input type="tel" placeholder="08x-xxx-xxxx"></div>
+          <div class="field" style="grid-column:1/-1"><label>หมายเหตุพิเศษ</label><textarea rows="2" placeholder="เช่น ต้องการรถวิ่งเข้าซอย, ต้องการปั๊มคอนกรีต"></textarea></div>
+        </div>
+        <div class="form-section">Order โรงงาน — AI แนะนำอัตโนมัติ</div>
+        <div class="form-grid full">
+          <div class="ai-suggest-box"><div class="icon">✦</div><div><strong>AI คำนวณการแบ่งงานให้อัตโนมัติ</strong> — ระบบวิเคราะห์รถว่าง (GPS real-time), ระยะทาง, และ pool ในศูนย์รัชดา แล้วสร้าง Order โรงงานที่ประหยัดที่สุด หรือปรับ manual ได้ด้านล่าง</div></div>
+          <div class="op-list">
+            <div class="op-item"><div class="op-num">A</div><div class="op-name">โรงงานรัชดา</div><div class="op-rounds">3 รอบ · 15 คิว · TRK-R01, R02</div><span class="op-ai">✦ AI แนะนำ</span><button style="margin-left:auto;font-size:11px;padding:3px 8px;border:1px solid var(--border2);border-radius:4px;background:transparent;cursor:pointer;color:var(--txt2)">แก้ไข</button></div>
+            <div class="op-item"><div class="op-num">B</div><div class="op-name">โรงงานลาดพร้าว</div><div class="op-rounds">1 รอบ · 5 คิว · TRK-L01</div><span class="op-ai">✦ AI แนะนำ</span><button style="margin-left:auto;font-size:11px;padding:3px 8px;border:1px solid var(--border2);border-radius:4px;background:transparent;cursor:pointer;color:var(--txt2)">แก้ไข</button></div>
+            <button class="btn-add-plant">+ เพิ่มโรงงานด้วยตัวเอง</button>
+          </div>
+        </div>
+      </div>
+      <div class="form-footer">
+        <button class="btn-secondary" onclick="goPage('page-orders')">ยกเลิก</button>
+        <button class="btn-secondary">บันทึกร่าง</button>
+        <button class="btn-primary" onclick="goPage('page-orders')">สร้าง Order และ Assign รถโม่</button>
+      </div>
+    </div>
+    <!-- AI Availability Check -->
+    <div style="background:var(--surf);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;">
+      <div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0;"><div class="ai-pulse"></div><div style="font-size:13px;font-weight:700;">ตรวจสอบความพร้อม</div></div>
+      <div style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;">
+        <div class="mini-map-box"><div id="order-mini-map"></div></div>
+        <div style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em;">เส้นทาง AI แนะนำ</div>
+        <div style="display:flex;flex-direction:column;gap:0;">
+          <div class="route-row"><span class="rr-lbl">Site</span><span class="rr-val">Central พระราม 9</span></div>
+          <div class="route-row"><span class="rr-lbl">โรงงาน A</span><span class="rr-val">รัชดา · 4.2 กม. · ~14 นาที</span></div>
+          <div class="route-row"><span class="rr-lbl">โรงงาน B</span><span class="rr-val" style="color:var(--green)">ลาดพร้าว · 6.8 กม. · ~18 นาที ✓ AI เลือก</span></div>
+        </div>
+        <div style="padding:10px 12px;background:var(--green-bg);border:1px solid rgba(30,107,60,.18);border-radius:var(--r);">
+          <div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:3px;">✓ สามารถรับ Order ได้</div>
+          <div style="font-size:11px;color:var(--txt2);">GPS real-time: รถว่างในศูนย์ 9 คัน · เพียงพอสำหรับ 20 คิว · 4 รอบ</div>
+        </div>
+        <div class="sug ai"><div class="sug-title">✦ AI Plan (09:00 วันนี้)</div><div class="sug-body">รอบ 1–3: TRK-R01, R02, R03 จากรัชดา (ETA GPS พร้อม)<br>รอบ 4: TRK-L01 จากลาดพร้าว (กลับถึง 08:50 GPS)<br>ระยะทางรวมต่ำกว่าใช้รัชดาทั้งหมด 12%</div></div>
+        <div style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em;">รถว่าง GPS Real-time</div>
+        <div style="font-size:11px;display:flex;flex-direction:column;gap:0;">
+          <div class="route-row"><span>โรงงานรัชดา</span><span class="rr-val" style="color:var(--blue)">ว่าง 3 คัน · GPS Live</span></div>
+          <div class="route-row"><span>โรงงานลาดพร้าว</span><span class="rr-val" style="color:var(--blue)">ว่าง 5 คัน · GPS Live</span></div>
+          <div class="route-row"><span>โรงงานห้วยขวาง</span><span class="rr-val" style="color:var(--amber)">ว่าง 1 คัน · งานมาก</span></div>
+        </div>
+        <div class="sug wrn"><div class="sug-title">ช่วง 10:00–11:00 ระวัง</div><div class="sug-body">ห้วยขวางรถจะตึงตัว ถ้า Order ใหม่ต้องการช่วงนั้น แนะนำเช็คก่อนยืนยัน</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 5 — แผนรถโม่รายวัน
+════════════════════════════════════════════════════════ -->
+<div class="page" id="page-truck-plan">
+  <nav class="topnav">
+    <div class="brand"><div class="brand-logo"><span>S</span></div><div><div class="brand-name"><em>SCG</em> RMC Delivery AI</div><div class="brand-sub">AI-POWERED DELIVERY OPTIMIZATION</div></div></div>
+    <div class="nav-tabs">
+      <div class="nav-tab" onclick="goPage('page-overview')">ภาพรวมศูนย์จ่าย</div>
+      <div class="nav-tab" onclick="goPage('page-orders')">Order ทั้งหมด</div>
+      <div class="nav-tab" onclick="goPage('page-map')">🗺 แผนที่ Live</div>
+      <div class="nav-tab" onclick="goPage('page-create-order')">สร้าง Order ใหม่</div>
+      <div class="nav-tab active">แผนรถโม่รายวัน</div>
+      <div class="nav-tab" onclick="goPage('page-fleet')">ประมาณการรถ</div>
+      <div class="nav-tab" onclick="goPage('page-report')">รายงาน</div>
+    </div>
+    <div class="nav-right"><div class="live-dot"></div><div class="nav-chip">ศูนย์จ่าย: <strong>ศูนย์รัชดา</strong></div><div class="nav-chip">27 เม.ย. 2569</div></div>
+  </nav>
+  <div class="layout-full">
+    <div class="filter-bar">
+      <label>โรงงาน</label><select><option>ทั้งหมด (3 โรงงาน)</option><option>รัชดา</option><option>ลาดพร้าว</option><option>ห้วยขวาง</option></select>
+      <label>วันที่</label><input type="date" value="2026-04-27">
+      <label>แสดงเฉพาะ</label><select><option>ทั้งหมด</option><option>กำลังวิ่ง</option><option>ว่าง</option><option>Pool โยก</option></select>
+      <span style="margin-left:auto;font-size:12px;color:var(--txt2);">รถทั้งหมด 19 คัน · เส้น pool โยกแสดงสีม่วง</span>
+    </div>
+    <div class="truck-plan-content">
+      <!-- Timeline Overview -->
+      <div style="background:var(--surf);border:1px solid var(--border);border-radius:var(--r-lg);padding:13px;margin-bottom:12px;box-shadow:var(--sh);">
+        <div class="plan-section-title">Timeline รวมทั้งศูนย์</div>
+        <div style="display:flex;gap:10px;font-size:10px;color:var(--txt2);margin-bottom:8px;">
+          <span><span style="display:inline-block;width:10px;height:10px;background:#BEDAF5;border-radius:2px;margin-right:3px;"></span>รัชดา</span>
+          <span><span style="display:inline-block;width:10px;height:10px;background:#BDE0C8;border-radius:2px;margin-right:3px;"></span>ลาดพร้าว</span>
+          <span><span style="display:inline-block;width:10px;height:10px;background:#FAD08A;border-radius:2px;margin-right:3px;"></span>ห้วยขวาง</span>
+          <span><span style="display:inline-block;width:10px;height:10px;background:#E8D8FA;border-radius:2px;margin-right:3px;border:1px dashed rgba(84,64,184,.5)"></span>Pool โยก (AI)</span>
+        </div>
+        <div class="tl-head"><div class="tl-spacer"></div><div class="tl-hours"><div class="tl-h">07:00</div><div class="tl-h">08:00</div><div class="tl-h">09:00</div><div class="tl-h">10:00</div><div class="tl-h">11:00</div><div class="tl-h">12:00</div><div class="tl-h">13:00</div><div class="tl-h">14:00</div></div></div>
+        <div class="tl-row"><div class="tl-lbl">TRK-R01</div><div class="tl-track"><div class="blk bl-b" style="left:0%;width:9%">CO-005</div><div class="blk bl-b" style="left:11%;width:11%">CO-001 R1</div><div class="blk bl-b" style="left:24%;width:11%">CO-001 R2</div><div class="blk bl-p" style="left:37%;width:11%">CO-002</div><div class="blk bl-b" style="left:50%;width:11%">CO-006</div></div></div>
+        <div class="tl-row"><div class="tl-lbl">TRK-R02</div><div class="tl-track"><div class="blk bl-e" style="left:0%;width:11%">ว่าง</div><div class="blk bl-b" style="left:13%;width:11%">CO-001 R3</div><div class="blk bl-b" style="left:26%;width:11%">CO-001 R4</div><div class="blk bl-a" style="left:39%;width:11%">CO-003 R4</div></div></div>
+        <div class="tl-row"><div class="tl-lbl">TRK-R03 →pool</div><div class="tl-track"><div class="blk bl-pool" style="left:0%;width:22%">Pool → ห้วยขวาง (AI)</div><div class="blk bl-a" style="left:24%;width:11%">CO-003 R4</div><div class="blk bl-a" style="left:37%;width:11%">CO-003 R5</div></div></div>
+        <div class="tl-row"><div class="tl-lbl">TRK-L01</div><div class="tl-track"><div class="blk bl-g" style="left:0%;width:9%">CO-001</div><div class="blk bl-p" style="left:11%;width:11%">CO-002 R1</div><div class="blk bl-p" style="left:24%;width:11%">CO-002 R2</div><div class="blk bl-e" style="left:37%;width:15%">ว่าง (pool)</div></div></div>
+        <div class="tl-row"><div class="tl-lbl">TRK-H01</div><div class="tl-track"><div class="blk bl-a" style="left:2%;width:11%">CO-003 R1</div><div class="blk bl-a" style="left:15%;width:11%">CO-003 R2</div><div class="blk bl-a" style="left:28%;width:11%">CO-003 R3</div><div class="blk bl-e" style="left:41%;width:11%">ว่าง</div></div></div>
+      </div>
+      <!-- Truck cards -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="truck-card">
+          <div class="tc-hdr"><div class="tc-id">TRK-R01</div><div class="tc-plant">โรงงานรัชดา</div><div class="tc-tags"><span class="tc-tag" style="background:var(--green-bg);color:var(--green);">GPS Live</span></div><div class="tc-status"><span class="badge b-go">กำลังวิ่ง</span></div></div>
+          <div class="tc-kpis"><div class="tc-kpi">รอบวันนี้: <strong>5 รอบ</strong></div><div class="tc-kpi">คิวรวม: <strong>25 คิว</strong></div><div class="tc-kpi">ระยะทาง: <strong>~42 กม.</strong></div><div class="tc-kpi">Start: <strong>รัชดา</strong></div></div>
+          <div class="tc-trips">
+            <div class="trip-row"><div class="trip-time">07:00–07:45</div><div class="trip-route">รัชดา → Asoke Junction</div><div class="trip-vol">5 คิว <span class="trip-status-ok">✓</span></div></div>
+            <div class="trip-row"><div class="trip-time">08:30–09:15</div><div class="trip-route">รัชดา → Central พระราม 9</div><div class="trip-vol">5 คิว <span class="trip-status-ok">✓</span></div></div>
+            <div class="trip-row"><div class="trip-time">09:30–10:15</div><div class="trip-route">รัชดา → Central พระราม 9</div><div class="trip-vol">5 คิว <span class="trip-status-active">⏳</span></div></div>
+            <div class="trip-row"><div class="trip-time">10:30–11:15</div><div class="trip-route">รัชดา → ลาดพร้าว Tower</div><div class="trip-vol">5 คิว</div></div>
+            <div class="trip-row"><div class="trip-time">12:00–12:45</div><div class="trip-route">รัชดา → Phahon Park</div><div class="trip-vol">5 คิว</div></div>
+          </div>
+        </div>
+        <div class="truck-card">
+          <div class="tc-hdr"><div class="tc-id">TRK-R03</div><div class="tc-plant">โรงงานรัชดา</div><div class="tc-tags"><span class="tc-tag" style="background:var(--purple-bg);color:var(--purple);">Pool โยก (AI)</span></div><div class="tc-status"><span class="badge b-wait">กลับโรงงาน</span></div></div>
+          <div class="tc-kpis"><div class="tc-kpi">รอบวันนี้: <strong>2 รอบ</strong></div><div class="tc-kpi">คิวรวม: <strong>10 คิว</strong></div><div class="tc-kpi">โยก: <strong>รัชดา→ห้วยขวาง</strong></div><div class="tc-kpi">GPS ETA กลับ: <strong>09:26</strong></div></div>
+          <div class="tc-trips">
+            <div class="trip-row"><div class="trip-time">10:15–11:00</div><div class="trip-route"><span class="trip-plant-hop">✦ รับจากห้วยขวาง</span> → ห้วยขวาง Prestige</div><div class="trip-vol">5 คิว</div></div>
+            <div class="trip-row"><div class="trip-time">11:15–12:00</div><div class="trip-route"><span class="trip-plant-hop">✦ รับจากห้วยขวาง</span> → ห้วยขวาง Prestige</div><div class="trip-vol">5 คิว</div></div>
+          </div>
+        </div>
+        <div class="truck-card">
+          <div class="tc-hdr"><div class="tc-id">TRK-L01</div><div class="tc-plant">โรงงานลาดพร้าว</div><div class="tc-tags"><span class="tc-tag" style="background:var(--green-bg);color:var(--green);">GPS Live</span></div><div class="tc-status"><span class="badge b-go">กำลังวิ่ง</span></div></div>
+          <div class="tc-kpis"><div class="tc-kpi">รอบวันนี้: <strong>4 รอบ</strong></div><div class="tc-kpi">คิวรวม: <strong>20 คิว</strong></div><div class="tc-kpi">ระยะทาง: <strong>~34 กม.</strong></div><div class="tc-kpi">Start: <strong>ลาดพร้าว</strong></div></div>
+          <div class="tc-trips">
+            <div class="trip-row"><div class="trip-time">07:00–07:40</div><div class="trip-route">ลาดพร้าว → Asoke Junction</div><div class="trip-vol">5 คิว <span class="trip-status-ok">✓</span></div></div>
+            <div class="trip-row"><div class="trip-time">08:15–09:00</div><div class="trip-route"><span class="trip-plant-hop">✦ รับจากรัชดา</span> → Central พระราม 9</div><div class="trip-vol">5 คิว <span class="trip-status-ok">✓</span></div></div>
+            <div class="trip-row"><div class="trip-time">09:30–10:10</div><div class="trip-route">ลาดพร้าว → ลาดพร้าว Tower</div><div class="trip-vol">5 คิว <span class="trip-status-active">⏳</span></div></div>
+            <div class="trip-row"><div class="trip-time">10:45–11:25</div><div class="trip-route">ลาดพร้าว → ลาดพร้าว Tower</div><div class="trip-vol">5 คิว</div></div>
+          </div>
+        </div>
+        <div class="truck-card">
+          <div class="tc-hdr"><div class="tc-id">TRK-H01</div><div class="tc-plant">โรงงานห้วยขวาง</div><div class="tc-tags"><span class="tc-tag" style="background:var(--green-bg);color:var(--green);">GPS Live</span></div><div class="tc-status"><span class="badge b-go">กำลังวิ่ง</span></div></div>
+          <div class="tc-kpis"><div class="tc-kpi">รอบวันนี้: <strong>3 รอบ</strong></div><div class="tc-kpi">คิวรวม: <strong>15 คิว</strong></div><div class="tc-kpi">ระยะทาง: <strong>~22 กม.</strong></div><div class="tc-kpi">Start: <strong>ห้วยขวาง</strong></div></div>
+          <div class="tc-trips">
+            <div class="trip-row"><div class="trip-time">08:00–08:35</div><div class="trip-route">ห้วยขวาง → ห้วยขวาง Prestige</div><div class="trip-vol">5 คิว <span class="trip-status-ok">✓</span></div></div>
+            <div class="trip-row"><div class="trip-time">09:00–09:35</div><div class="trip-route">ห้วยขวาง → ห้วยขวาง Prestige</div><div class="trip-vol">5 คิว <span class="trip-status-active">⏳</span></div></div>
+            <div class="trip-row"><div class="trip-time">09:50–10:25</div><div class="trip-route">ห้วยขวาง → ห้วยขวาง Prestige</div><div class="trip-vol">5 คิว</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 6 — ประมาณการรถ
+════════════════════════════════════════════════════════ -->
+<div class="page" id="page-fleet">
+  <nav class="topnav">
+    <div class="brand"><div class="brand-logo"><span>S</span></div><div><div class="brand-name"><em>SCG</em> RMC Delivery AI</div><div class="brand-sub">AI-POWERED DELIVERY OPTIMIZATION</div></div></div>
+    <div class="nav-tabs">
+      <div class="nav-tab" onclick="goPage('page-overview')">ภาพรวมศูนย์จ่าย</div>
+      <div class="nav-tab" onclick="goPage('page-orders')">Order ทั้งหมด</div>
+      <div class="nav-tab" onclick="goPage('page-map')">🗺 แผนที่ Live</div>
+      <div class="nav-tab" onclick="goPage('page-create-order')">สร้าง Order ใหม่</div>
+      <div class="nav-tab" onclick="goPage('page-truck-plan')">แผนรถโม่รายวัน</div>
+      <div class="nav-tab active">ประมาณการรถ</div>
+      <div class="nav-tab" onclick="goPage('page-report')">รายงาน</div>
+    </div>
+    <div class="nav-right"><div class="nav-chip">ศูนย์จ่าย: <strong>ศูนย์รัชดา</strong></div><div class="nav-chip">27 เม.ย. 2569</div></div>
+  </nav>
+  <div class="layout-full">
+    <div class="fleet-content">
+      <div style="font-size:16px;font-weight:700;margin-bottom:14px;">ประมาณการรถโม่ที่ต้องใช้วันนี้ — AI คำนวณจาก Order Pattern</div>
+      <div class="fleet-summary-grid">
+        <div class="fsc"><h4>Order ทั้งหมดวันนี้</h4><div class="fsc-big">186</div><div class="fsc-sub">คิว ใน 12 Order ศูนย์ (48 Order โรงงาน)</div><div class="fsc-detail">Peak: 09:00–11:00<br>รอบรวม: 37 รอบ<br>ระยะทางประมาณ: 480 กม.</div></div>
+        <div class="fsc" style="border-color:rgba(30,107,60,.2);background:var(--green-bg)"><h4 style="color:var(--green)">AI แนะนำใช้</h4><div class="fsc-big" style="color:var(--green)">15</div><div class="fsc-sub" style="color:var(--green)">คัน (จาก 19 คันที่มี)</div><div class="fsc-detail" style="color:#1D5430">รัชดา: 6 คัน<br>ลาดพร้าว: 5 คัน<br>ห้วยขวาง: 4 คัน<br><strong style="color:var(--green)">ประหยัดได้ 4 คัน (21%)</strong></div></div>
+        <div class="fsc" style="border-color:rgba(84,64,184,.2);background:var(--purple-bg)"><h4 style="color:var(--purple)">ผลประหยัด</h4><div class="fsc-big" style="color:var(--purple)">21%</div><div class="fsc-sub" style="color:var(--purple)">ลดจำนวนรถที่ไม่จำเป็น</div><div class="fsc-detail" style="color:#3D2B9E">ลดระยะวิ่งเปล่า ~68 กม.<br>Utilization 84% (vs เมื่อวาน 75%)<br><strong style="color:var(--purple)">ลดต้นทุน ~฿4,200/วัน</strong></div></div>
+      </div>
+      <div style="background:var(--surf);border:1px solid var(--border);border-radius:var(--r-lg);margin-bottom:14px;overflow:hidden;box-shadow:var(--sh);">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;">การจัดสรรรถต่อโรงงาน</div>
+        <table class="alloc-table">
+          <thead><tr><th>โรงงาน</th><th>รถทั้งหมด</th><th>AI แนะนำ</th><th>Pool โยก</th><th>Utilization</th><th>Order ที่รับผิดชอบ</th><th>หมายเหตุ</th></tr></thead>
+          <tbody>
+            <tr><td><strong>รัชดา</strong></td><td>8 คัน</td><td><strong>6 คัน</strong></td><td>1 คัน (→ห้วยขวาง)</td><td><span class="util-bar"><span class="util-fill uf-ok" style="width:75%"></span></span>75%</td><td>CO-001, CO-002(บางส่วน), CO-006</td><td><span class="badge b-go">ปกติ</span></td></tr>
+            <tr><td><strong>ลาดพร้าว</strong></td><td>6 คัน</td><td><strong>5 คัน</strong></td><td>—</td><td><span class="util-bar"><span class="util-fill uf-warn" style="width:83%"></span></span>83%</td><td>CO-001(บางส่วน), CO-002, CO-004</td><td><span class="badge b-wait">ใกล้เต็ม</span></td></tr>
+            <tr><td><strong>ห้วยขวาง</strong></td><td>5 คัน</td><td><strong>4 คัน</strong></td><td>+1 (รับจากรัชดา)</td><td><span class="util-bar"><span class="util-fill uf-hot" style="width:95%"></span></span>95%</td><td>CO-003 (รับ pool จากรัชดา)</td><td><span class="badge b-err">งานล้น</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="background:var(--surf);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;box-shadow:var(--sh);">
+        <div style="font-size:12px;font-weight:700;margin-bottom:12px;">ความต้องการรถแต่ละช่วงเวลา (คัน)</div>
+        <div style="display:flex;align-items:flex-end;gap:5px;height:80px;margin-bottom:5px;">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1"><div style="width:100%;background:var(--blue-bg);border:1px solid rgba(26,95,168,.2);border-radius:2px 2px 0 0;height:30px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--blue)">4</div><div style="font-size:9px;color:var(--txt3)">07:00</div></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1"><div style="width:100%;background:var(--blue-bg);border:1px solid rgba(26,95,168,.2);border-radius:2px 2px 0 0;height:44px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--blue)">6</div><div style="font-size:9px;color:var(--txt3)">08:00</div></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1"><div style="width:100%;background:var(--accent-bg);border:2px solid var(--accent);border-radius:2px 2px 0 0;height:68px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--accent)">9</div><div style="font-size:9px;color:var(--accent);font-weight:700">09:00 peak</div></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1"><div style="width:100%;background:var(--accent-bg);border:2px solid var(--accent);border-radius:2px 2px 0 0;height:60px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--accent)">8</div><div style="font-size:9px;color:var(--accent);font-weight:700">10:00 peak</div></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1"><div style="width:100%;background:var(--amber-bg);border:1px solid rgba(143,90,0,.2);border-radius:2px 2px 0 0;height:52px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--amber)">7</div><div style="font-size:9px;color:var(--txt3)">11:00</div></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1"><div style="width:100%;background:var(--blue-bg);border:1px solid rgba(26,95,168,.2);border-radius:2px 2px 0 0;height:34px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--blue)">5</div><div style="font-size:9px;color:var(--txt3)">12:00</div></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1"><div style="width:100%;background:var(--blue-bg);border:1px solid rgba(26,95,168,.2);border-radius:2px 2px 0 0;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--blue)">3</div><div style="font-size:9px;color:var(--txt3)">13:00</div></div>
+        </div>
+        <div style="font-size:10px;color:var(--txt3);">จำนวนรถที่ต้องใช้แต่ละชั่วโมง · AI คำนวณจาก GPS ETA จริง ไม่ใช่จาก Order เท่านั้น</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 7 — รายงาน
+════════════════════════════════════════════════════════ -->
+<div class="page" id="page-report">
+  <nav class="topnav">
+    <div class="brand"><div class="brand-logo"><span>S</span></div><div><div class="brand-name"><em>SCG</em> RMC Delivery AI</div><div class="brand-sub">AI-POWERED DELIVERY OPTIMIZATION</div></div></div>
+    <div class="nav-tabs">
+      <div class="nav-tab" onclick="goPage('page-overview')">ภาพรวมศูนย์จ่าย</div>
+      <div class="nav-tab" onclick="goPage('page-orders')">Order ทั้งหมด</div>
+      <div class="nav-tab" onclick="goPage('page-map')">🗺 แผนที่ Live</div>
+      <div class="nav-tab" onclick="goPage('page-create-order')">สร้าง Order ใหม่</div>
+      <div class="nav-tab" onclick="goPage('page-truck-plan')">แผนรถโม่รายวัน</div>
+      <div class="nav-tab" onclick="goPage('page-fleet')">ประมาณการรถ</div>
+      <div class="nav-tab active">รายงาน</div>
+    </div>
+    <div class="nav-right"><div class="nav-chip">ศูนย์จ่าย: <strong>ศูนย์รัชดา</strong></div><div class="nav-chip">เม.ย. 2569</div><button style="padding:6px 14px;font-size:12px;background:var(--blue);color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer;">Export PDF</button></div>
+  </nav>
+  <div class="filter-bar">
+    <label>ช่วงเวลา</label><select><option>วันนี้</option><option selected>เดือนนี้</option><option>ไตรมาสนี้</option></select>
+    <label>ศูนย์</label><select><option>ศูนย์รัชดา</option><option>ทุกศูนย์</option></select>
+  </div>
+  <div class="report-grid">
+    <div class="rc">
+      <div class="rc-hdr"><div><div class="rc-title">ผลการจัดส่งรายวัน</div><div class="rc-sub">เมษายน 2569</div></div><span class="badge b-ok">+9% vs เดือนก่อน</span></div>
+      <div class="mini-bars"><div class="mb" style="height:60%;background:var(--blue-bg);border:1px solid rgba(26,95,168,.2)"></div><div class="mb" style="height:75%;background:var(--blue-bg);border:1px solid rgba(26,95,168,.2)"></div><div class="mb" style="height:65%;background:var(--blue-bg);border:1px solid rgba(26,95,168,.2)"></div><div class="mb" style="height:80%;background:var(--blue-bg);border:1px solid rgba(26,95,168,.2)"></div><div class="mb" style="height:70%;background:var(--blue-bg);border:1px solid rgba(26,95,168,.2)"></div><div class="mb" style="height:90%;background:var(--blue-bg);border:1px solid rgba(26,95,168,.2)"></div><div class="mb today" style="height:85%"></div></div>
+      <div style="display:flex;gap:0;margin-bottom:10px;"><div class="mb-lbl">21</div><div class="mb-lbl">22</div><div class="mb-lbl">23</div><div class="mb-lbl">24</div><div class="mb-lbl">25</div><div class="mb-lbl">26</div><div class="mb-lbl" style="color:var(--accent);font-weight:700">27</div></div>
+      <div class="stat-list-item"><span>คิวทั้งหมด (เดือนนี้)</span><span class="stat-val">3,840 คิว</span></div>
+      <div class="stat-list-item"><span>อัตราส่งตรงเวลา</span><span class="stat-val" style="color:var(--green)">94.2%</span></div>
+      <div class="stat-list-item"><span>GPS ETA accuracy</span><span class="stat-val" style="color:var(--green)">±4 นาที</span></div>
+      <div class="stat-list-item"><span>Order ที่ต้องเลื่อน</span><span class="stat-val" style="color:var(--amber)">12 Order</span></div>
+    </div>
+    <div class="rc">
+      <div class="rc-hdr"><div><div class="rc-title">ประสิทธิภาพรถโม่</div><div class="rc-sub">ทุกโรงงานในศูนย์รัชดา</div></div></div>
+      <div class="ai-impact-grid" style="margin-bottom:12px;">
+        <div class="aic"><div class="aic-val" style="color:var(--green)">84%</div><div class="aic-lbl">Utilization เฉลี่ย</div></div>
+        <div class="aic"><div class="aic-val" style="color:var(--blue)">3.2</div><div class="aic-lbl">รอบ/คัน/วัน</div></div>
+        <div class="aic"><div class="aic-val" style="color:var(--purple)">23</div><div class="aic-lbl">pool โยกครั้ง/เดือน</div></div>
+        <div class="aic"><div class="aic-val" style="color:var(--green)">18%</div><div class="aic-lbl">ลดวิ่งเปล่า</div></div>
+      </div>
+      <div class="stat-list-item"><span>ใช้รถเฉลี่ย/วัน</span><span class="stat-val">14.8 คัน</span></div>
+      <div class="stat-list-item"><span>ระยะทางรวม/วัน</span><span class="stat-val">~480 กม.</span></div>
+      <div class="stat-list-item"><span>AI suggestions ยืนยัน</span><span class="stat-val" style="color:var(--purple)">89%</span></div>
+    </div>
+    <div class="rc">
+      <div class="rc-hdr"><div><div class="rc-title">ผลงานแต่ละโรงงาน</div><div class="rc-sub">เมษายน 2569</div></div></div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div><div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px;"><strong>โรงงานรัชดา</strong><span>1,680 คิว · 75%</span></div><div class="util-bar" style="width:100%;height:8px;"><div class="util-fill uf-ok" style="width:75%"></div></div></div>
+        <div><div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px;"><strong>โรงงานลาดพร้าว</strong><span>1,260 คิว · 83%</span></div><div class="util-bar" style="width:100%;height:8px;"><div class="util-fill uf-warn" style="width:83%"></div></div></div>
+        <div><div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px;"><strong>โรงงานห้วยขวาง</strong><span>900 คิว · 95%</span></div><div class="util-bar" style="width:100%;height:8px;"><div class="util-fill uf-hot" style="width:95%"></div></div></div>
+      </div>
+      <div style="margin-top:10px;padding:8px 10px;background:var(--purple-bg);border-radius:var(--r);font-size:11px;color:var(--purple);">✦ AI Pool โยก 23 ครั้งเดือนนี้ ช่วยลดรถว่างเปล่าในห้วยขวาง</div>
+    </div>
+    <div class="rc">
+      <div class="rc-hdr"><div><div class="rc-title">ผลกระทบจาก AI Agent</div><div class="rc-sub">Before vs After AI Integration</div></div><span class="badge b-ai">AI Layer</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+        <div style="padding:10px;background:var(--surf2);border-radius:var(--r);border-left:3px solid var(--border2);"><div style="font-size:10px;color:var(--txt3);margin-bottom:4px;">Manual (ก่อน AI)</div><div style="font-size:20px;font-weight:800;color:var(--txt2);">68%</div><div style="font-size:10px;color:var(--txt3)">Utilization · ข้อมูลจาก Order เท่านั้น</div></div>
+        <div style="padding:10px;background:var(--green-bg);border-radius:var(--r);border-left:3px solid var(--green);"><div style="font-size:10px;color:var(--green);margin-bottom:4px;">AI + GPS Real-time</div><div style="font-size:20px;font-weight:800;color:var(--green);">84%</div><div style="font-size:10px;color:var(--green)">Utilization · GPS + AI แม่นยำ</div></div>
+      </div>
+      <div class="stat-list-item"><span>ลดวิ่งเปล่า (GPS จริง)</span><span class="stat-val" style="color:var(--green)">-22%</span></div>
+      <div class="stat-list-item"><span>ลดเวลาวางแผน/วัน</span><span class="stat-val" style="color:var(--green)">-65 นาที</span></div>
+      <div class="stat-list-item"><span>ประหยัดต้นทุน</span><span class="stat-val" style="color:var(--green)">~฿92K/เดือน</span></div>
+      <div class="stat-list-item"><span>AI Pool โยก accuracy</span><span class="stat-val" style="color:var(--purple)">94%</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCRIPTS
+════════════════════════════════════════════════════════ -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ── Page nav ─────────────────────────────────────────── */
+function goPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (id === 'page-map' && !window._mainInit) initMainMap();
+  if (id === 'page-create-order' && !window._miniInit) setTimeout(initMiniMap, 120);
+}
+function openModal()          { document.getElementById('interrupt-modal').classList.add('open'); }
+function closeModal()         { document.getElementById('interrupt-modal').classList.remove('open'); }
+function openAIPlanModal()    { document.getElementById('aiplan-modal').classList.add('open'); }
+function closeAIPlanModal()   { document.getElementById('aiplan-modal').classList.remove('open'); }
+function openRelocateModal()  { document.getElementById('relocate-modal').classList.add('open'); }
+function closeRelocateModal() { document.getElementById('relocate-modal').classList.remove('open'); }
+function sendPrompt(t) { console.log('AI prompt:', t); }
+
+/* ── Leaflet data ─────────────────────────────────────── */
+const PLANTS = [
+  { id:'rachada',    name:'โรงงานรัชดา',    lat:13.770, lng:100.550, idle:3, total:8, col:'#1A5FA8' },
+  { id:'ladprao',    name:'โรงงานลาดพร้าว', lat:13.805, lng:100.568, idle:5, total:6, col:'#117A65' },
+  { id:'huaikhwang', name:'โรงงานห้วยขวาง', lat:13.774, lng:100.585, idle:1, total:5, col:'#A82020' },
+];
+const SITES = [
+  { id:'CO-001', name:'Central พระราม 9',   lat:13.725, lng:100.564, status:'go' },
+  { id:'CO-002', name:'ลาดพร้าว Tower',      lat:13.812, lng:100.575, status:'ai' },
+  { id:'CO-003', name:'ห้วยขวาง Prestige',   lat:13.769, lng:100.593, status:'err' },
+  { id:'CO-004', name:'รัชดา Complex',        lat:13.782, lng:100.541, status:'wait' },
+  { id:'CO-005', name:'Asoke Junction',       lat:13.744, lng:100.560, status:'ok' },
+];
+const TRUCKS = [
+  { id:'TRK-R01', plant:'รัชดา',    lat:13.748, lng:100.562, status:'moving', to:'Central พระราม 9', eta:'09:18', gps:true },
+  { id:'TRK-R02', plant:'รัชดา',    lat:13.756, lng:100.549, status:'moving', to:'Central พระราม 9', eta:'09:22', gps:true },
+  { id:'TRK-R03', plant:'รัชดา',    lat:13.764, lng:100.554, status:'return', to:'รัชดา', eta:'09:26', gps:true },
+  { id:'TRK-L01', plant:'ลาดพร้าว', lat:13.800, lng:100.570, status:'moving', to:'ลาดพร้าว Tower', eta:'09:31', gps:true },
+  { id:'TRK-H01', plant:'ห้วยขวาง', lat:13.766, lng:100.589, status:'moving', to:'ห้วยขวาง Prestige', eta:'09:15', gps:true },
+  { id:'TRK-L02', plant:'ลาดพร้าว', lat:13.793, lng:100.561, status:'return', to:'ลาดพร้าว', eta:'09:41', gps:true },
+  { id:'TRK-R04', plant:'รัชดา',    lat:13.770, lng:100.550, status:'idle', to:'—', eta:'—', gps:false },
+  { id:'TRK-L03', plant:'ลาดพร้าว', lat:13.805, lng:100.568, status:'idle', to:'—', eta:'—', gps:false },
+];
+
+const STATUS_COL = { moving:'#E85D24', return:'#8F5A00', idle:'#1E6B3C', pool:'#5440B8' };
+const SITE_COL = { go:'#1A5FA8', ai:'#5440B8', err:'#A82020', wait:'#8F5A00', ok:'#1E6B3C' };
+
+function mkIcon(emoji, bg, size=28) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <circle cx="${size/2}" cy="${size/2}" r="${size/2-1}" fill="${bg}" opacity="0.18"/>
+    <circle cx="${size/2}" cy="${size/2}" r="${size/2-1}" fill="none" stroke="${bg}" stroke-width="1.5"/>
+    <text x="${size/2}" y="${size/2+4}" text-anchor="middle" font-size="${size*0.5}">${emoji}</text>
+  </svg>`;
+  return L.divIcon({ html:svg, iconSize:[size,size], iconAnchor:[size/2,size/2], className:'' });
+}
+function plantIcon(col, size=34) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 34 34">
+    <rect x="3" y="3" width="28" height="28" rx="6" fill="${col}" opacity="0.14"/>
+    <rect x="3" y="3" width="28" height="28" rx="6" fill="none" stroke="${col}" stroke-width="2"/>
+    <rect x="10" y="13" width="14" height="11" rx="1" fill="${col}"/>
+    <rect x="14" y="19" width="6" height="5" rx="1" fill="white"/>
+    <rect x="12" y="9" width="10" height="5" rx="1" fill="${col}"/>
+  </svg>`;
+  return L.divIcon({ html:svg, iconSize:[34,34], iconAnchor:[17,17], className:'' });
+}
+function siteIcon(col, size=24) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size*1.25}" viewBox="0 0 24 30">
+    <path d="M12 1C5.9 1 1 5.9 1 12C1 19 12 29 12 29C12 29 23 19 23 12C23 5.9 18.1 1 12 1Z" fill="${col}" opacity="0.9" stroke="white" stroke-width="1.5"/>
+    <circle cx="12" cy="12" r="5" fill="white" opacity="0.9"/>
+  </svg>`;
+  return L.divIcon({ html:svg, iconSize:[24,30], iconAnchor:[12,30], className:'' });
+}
+
+/* ── Main Map ─────────────────────────────────────────── */
+function initMainMap() {
+  window._mainInit = true;
+  const map = L.map('main-map', { zoomControl:true, attributionControl:false }).setView([13.776,100.565],13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(map);
+  window._map = map;
+  window._layers = { plants:L.layerGroup(), sites:L.layerGroup(), trucks:L.layerGroup(), routes:L.layerGroup() };
+  Object.values(window._layers).forEach(lg => lg.addTo(map));
+
+  PLANTS.forEach(p => {
+    const truckInfo = {
+      rachada:    { moving:5, returning:0, idle:3 },
+      ladprao:    { moving:1, returning:1, idle:4 },
+      huaikhwang: { moving:4, returning:0, idle:1 },
+    };
+    const info = truckInfo[p.id] || { moving:0, returning:0, idle:0 };
+    L.marker([p.lat,p.lng],{icon:plantIcon(p.col), zIndexOffset:1000})
+      .addTo(window._layers.plants)
+      .bindPopup(`<div class="map-popup">
+        <div class="mp-title">${p.name}</div>
+        <div class="mp-sub" style="margin-bottom:6px;">Pool ศูนย์รัชดา · รถทั้งหมด ${p.total} คัน</div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 8px;font-size:11px;">
+          <span style="color:#E85D24;font-weight:600;">● วิ่งอยู่</span><span>${info.moving} คัน</span>
+          <span style="color:#8F5A00;font-weight:600;">↩ กลับ</span><span>${info.returning} คัน</span>
+          <span style="color:#1E6B3C;font-weight:600;">✓ ว่าง</span><span style="font-weight:600;">${p.idle} คัน</span>
+        </div>
+        <div class="mp-badge" style="background:#EAF2FC;color:#1A5FA8;margin-top:6px;">Pool ศูนย์รัชดา</div>
+      </div>`,{maxWidth:220});
+  });
+  SITES.forEach(s => {
+    const col = SITE_COL[s.status];
+    L.marker([s.lat,s.lng],{icon:siteIcon(col)}).addTo(window._layers.sites)
+      .bindPopup(`<div class="map-popup"><div class="mp-title">${s.id}</div><div class="mp-sub">${s.name}</div><div class="mp-badge" style="background:${col}22;color:${col}">${{go:'กำลังส่ง',ai:'AI แนะนำ',err:'รถไม่พอ',wait:'รอดำเนินการ',ok:'เสร็จสิ้น'}[s.status]}</div></div>`,{maxWidth:220});
+  });
+  TRUCKS.forEach(t => {
+    const col = STATUS_COL[t.status];
+    L.marker([t.lat,t.lng],{icon:mkIcon('🚛',col,28)}).addTo(window._layers.trucks)
+      .bindPopup(`<div class="map-popup"><div class="mp-title">${t.id}</div><div class="mp-sub">โรงงาน${t.plant}<br>มุ่งหน้า: ${t.to}<br>ETA: ${t.eta}</div>${t.gps?'<div class="mp-gps">● GPS Real-time</div>':''}<div class="mp-badge" style="background:${col}22;color:${col}">${{moving:'กำลังวิ่ง',return:'กลับโรงงาน',idle:'ว่าง',pool:'Pool โยก'}[t.status]}</div></div>`,{maxWidth:220});
+  });
+  // Route lines
+  const rs = {color:'#1A5FA8',weight:2,opacity:.4,dashArray:'6 4'};
+  L.polyline([[13.770,100.550],[13.748,100.562],[13.725,100.564]],rs).addTo(window._layers.routes);
+  L.polyline([[13.805,100.568],[13.800,100.570],[13.812,100.575]],{...rs,color:'#117A65'}).addTo(window._layers.routes);
+  L.polyline([[13.774,100.585],[13.766,100.589],[13.769,100.593]],{...rs,color:'#A82020'}).addTo(window._layers.routes);
+}
+
+function filterLayer(type) {
+  document.querySelectorAll('.mtb').forEach(b=>b.classList.remove('active'));
+  document.getElementById('ml-'+type)?.classList.add('active');
+  if (!window._map) return;
+  const lg = window._layers;
+  // Reset: show all layers
+  Object.values(lg).forEach(l => window._map.addLayer(l));
+  // Plants are ALWAYS visible — dispatcher must always see plant locations
+  window._map.addLayer(lg.plants);
+  // Apply filter
+  if (type === 'moving' || type === 'idle') {
+    window._map.removeLayer(lg.sites);
+    window._map.removeLayer(lg.routes);
+  }
+  if (type === 'sites')  { window._map.removeLayer(lg.trucks); }
+  if (type === 'pool')   { window._map.removeLayer(lg.sites); window._map.removeLayer(lg.routes); }
+  // Plants always stays — reassert after any removal
+  window._map.addLayer(lg.plants);
+}
+
+/* ── Mini map (create order) ──────────────────────────── */
+function initMiniMap() {
+  window._miniInit = true;
+  const map = L.map('order-mini-map',{zoomControl:false,attributionControl:false,dragging:true}).setView([13.758,100.560],13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(map);
+  const site = [13.725,100.564];
+  L.marker(site,{icon:siteIcon('#E85D24')}).addTo(map).bindPopup('<div class="map-popup"><div class="mp-title">Site ใหม่</div><div class="mp-sub">Central พระราม 9</div></div>').openPopup();
+  L.marker([13.770,100.550],{icon:plantIcon('#1A5FA8',28)}).addTo(map).bindPopup('<div class="map-popup"><div class="mp-title">โรงงานรัชดา</div><div class="mp-sub">4.2 กม. · ~14 นาที</div></div>');
+  L.marker([13.805,100.568],{icon:plantIcon('#117A65',28)}).addTo(map).bindPopup('<div class="map-popup"><div class="mp-title">โรงงานลาดพร้าว</div><div class="mp-sub">6.8 กม. · ~18 นาที ✓ AI เลือก</div></div>');
+  L.polyline([[13.770,100.550],site],{color:'#1A5FA8',weight:2,opacity:.45,dashArray:'5 4'}).addTo(map);
+  L.polyline([[13.805,100.568],site],{color:'#117A65',weight:3,opacity:.65,dashArray:'5 4'}).addTo(map);
+}
+</script>
+</body>
+</html>
